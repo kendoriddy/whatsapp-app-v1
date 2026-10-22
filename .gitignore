@@ -17,3 +17,6 @@ test-results
 supabase/.temp
 *.tsbuildinfo
 .vercel-claim.url
+.tmp_0001.sql
+.tmp_0002.sql
+.env.staging.snippet
