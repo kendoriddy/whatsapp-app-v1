@@ -20,8 +20,8 @@ supabase start
 # DATABASE_URL in .env.example already points at supabase local :54322
 
 pnpm db:migrate
-pnpm create-admin --email=you@example.com --name=Kehinde
-# paste DEMO_ADMIN_ID=<id> into .env.local from the script output
+pnpm create-admin --email=you@example.com --name=Kehinde --password='your-secure-password'
+# optional local bootstrap: paste DEMO_ADMIN_ID=<id> into .env.local from the script output
 
 # separate terminals:
 pnpm dev:mock-graph   # :4010
@@ -31,7 +31,17 @@ pnpm dev:web          # :3000
 
 Scripts load `.env.local` automatically (then `.env`).
 
-In the browser console (or localStorage): `localStorage.setItem('mmabon_dev_user_id', '<admin-uuid>')`
+**Sign in:** open `/login` with the create-admin email/password (Supabase Auth cookies).  
+Local-only shortcut (no login page): `DEMO_ADMIN_ID` in `.env.local`, or  
+`localStorage.setItem('mmabon_dev_user_id', '<admin-uuid>')`.
+
+### Staging (Vercel)
+
+1. Use a **hosted** Supabase project (not `127.0.0.1`) in Vercel env: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL`, `DATABASE_URL_DIRECT`.
+2. Set `APP_ENV=staging`, `APP_BASE_URL=https://whatsapp-app-v1.vercel.app`.
+3. Run migrations against that DB, then locally (pointing env at staging DB):  
+   `pnpm create-admin --email=you@example.com --name=Kehinde --password='…'`
+4. Open `https://whatsapp-app-v1.vercel.app/login` and sign in.
 
 Replay a fixture:
 
@@ -49,7 +59,7 @@ pnpm eval:extract
 
 ## Meta phone numbers
 
-Pilot: `+2349079207221`. Setup and cutover to MMABON: **spec §8.1 and §23**. App swap: Settings → WhatsApp (no redeploy).
+Pilot: `+2348167012575`. Setup and cutover to MMABON: **spec §8.1 and §23**. App swap: Settings → WhatsApp (no redeploy).
 
 ## Packages
 

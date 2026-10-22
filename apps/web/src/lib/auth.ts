@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { staffUser } from "@mmabon/db";
 import { getDb } from "./db";
 import { getEnv } from "./env";
+import { createServerSupabase } from "./supabase/server";
 
 export type SessionUser = {
   id: string;
@@ -12,36 +13,65 @@ export type SessionUser = {
   role: AppRole;
 };
 
-/** Dev/local session via headers when Supabase auth is not wired. */
-export async function getSessionUser(req: Request): Promise<SessionUser | null> {
+async function staffFromId(
+  id: string,
+  emailFallback: string,
+): Promise<SessionUser | null> {
+  const db = getDb();
+  const [u] = await db
+    .select()
+    .from(staffUser)
+    .where(eq(staffUser.id, id))
+    .limit(1);
+  if (!u?.active) return null;
+  return {
+    id: u.id,
+    email: emailFallback,
+    fullName: u.fullName,
+    role: u.role,
+  };
+}
+
+/** Session: Supabase cookie (staging/prod), or local DEMO_ADMIN / x-dev-user-id. */
+export async function getSessionUser(
+  req: Request,
+): Promise<SessionUser | null> {
   const env = getEnv();
-  const devUser = req.headers.get("x-dev-user-id");
-  if (env.APP_ENV === "local" && devUser) {
-    const db = getDb();
-    const [u] = await db.select().from(staffUser).where(eq(staffUser.id, devUser)).limit(1);
-    if (u?.active) {
-      return {
-        id: u.id,
-        email: "dev@local",
-        fullName: u.fullName,
-        role: u.role,
-      };
+
+  // Prefer real Supabase session when cookies are present (all environments)
+  try {
+    const supabase = await createServerSupabase();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (user) {
+      return staffFromId(user.id, user.email ?? "staff@mmabon");
+    }
+  } catch {
+    // Env / cookies unavailable — fall through to local bootstrap
+  }
+
+  if (env.APP_ENV === "local") {
+    const devUser = req.headers.get("x-dev-user-id");
+    if (devUser) {
+      const fromHeader = await staffFromId(devUser, "dev@local");
+      if (fromHeader) return fromHeader;
+    }
+
+    const demo = process.env.DEMO_ADMIN_ID;
+    if (demo) {
+      const fromDemo = await staffFromId(demo, "admin@local");
+      if (fromDemo) return fromDemo;
     }
   }
 
-  // Cookie-based Supabase SSR would go here; for local bootstrap allow DEMO_ADMIN_ID
-  const demo = process.env.DEMO_ADMIN_ID;
-  if (env.APP_ENV === "local" && demo) {
-    const db = getDb();
-    const [u] = await db.select().from(staffUser).where(eq(staffUser.id, demo)).limit(1);
-    if (u?.active) {
-      return { id: u.id, email: "admin@local", fullName: u.fullName, role: u.role };
-    }
-  }
   return null;
 }
 
-export async function requireRole(req: Request, roles?: AppRole[]): Promise<SessionUser> {
+export async function requireRole(
+  req: Request,
+  roles?: AppRole[],
+): Promise<SessionUser> {
   const user = await getSessionUser(req);
   if (!user) {
     const err = new Error("UNAUTHORIZED");
