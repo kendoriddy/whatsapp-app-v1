@@ -1,0 +1,33 @@
+{
+  "name": "mmabon-desk",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@9.15.9",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "pnpm -r --filter=./packages/* build && pnpm -r --filter=./apps/* build",
+    "dev": "pnpm -r --parallel --filter=@mmabon/web --filter=@mmabon/worker --filter=@mmabon/mock-graph dev",
+    "dev:web": "pnpm --filter @mmabon/web dev",
+    "dev:worker": "pnpm --filter @mmabon/worker dev",
+    "dev:mock-graph": "pnpm --filter @mmabon/mock-graph dev",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "fixtures:replay": "tsx scripts/replay-fixtures.ts",
+    "eval:classify": "tsx eval/classification/run.ts",
+    "eval:extract": "tsx eval/extraction/run.ts",
+    "db:migrate": "pnpm --filter @mmabon/db migrate",
+    "create-admin": "tsx scripts/create-admin.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.3",
+    "dotenv": "^16.5.0",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3",
+    "vitest": "^5.0.5",
+    "yaml": "^2.7.1"
+  }
+}

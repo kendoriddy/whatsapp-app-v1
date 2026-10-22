@@ -1,0 +1,6 @@
+id: D_inquiry
+contact: { wa_id: "2348000000101", profile_name: "Chidi (Fixture)" }
+start: "2026-10-12T09:00:00+01:00"
+messages:
+  - { at: "+0m", from: customer, type: text, text: "polos for staff", expect: { class: order } }
+  - { at: "+2m", from: customer, type: text, text: "maybe 80, navy", expect: { class: order } }

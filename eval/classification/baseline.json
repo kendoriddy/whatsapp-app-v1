@@ -1,0 +1,5 @@
+{
+  "macroF1": 0.75,
+  "promptVersion": "classify-v1.0.0",
+  "notes": "Synthetic baseline for CI; replace after Stella labelling"
+}

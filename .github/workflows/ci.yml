@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - run: pnpm typecheck
+      - run: pnpm test
+        env:
+          APP_ENV: local
+          APP_BASE_URL: http://localhost:3000
+          DATABASE_URL: postgres://postgres:postgres@127.0.0.1:54322/postgres
+          DATABASE_URL_DIRECT: postgres://postgres:postgres@127.0.0.1:54322/postgres
+          SUPABASE_URL: http://127.0.0.1:54321
+          SUPABASE_ANON_KEY: test-anon
+          SUPABASE_SERVICE_ROLE_KEY: test-service
+          STORAGE_BUCKET_MEDIA: wa-media
+          META_GRAPH_API_BASE_URL: http://localhost:4010
+          META_GRAPH_API_VERSION: v25.0
+          META_APP_ID: test
+          META_APP_SECRET: test-secret
+          META_WEBHOOK_VERIFY_TOKEN: test-verify-token-xxxxxxxx
+          META_SYSTEM_USER_TOKEN: test-token
+          META_WABA_ID: test-waba
+          META_PHONE_NUMBER_ID: test-phone
+          PAYSTACK_SECRET_KEY: sk_test_x
+          PAYSTACK_CALLBACK_URL: http://localhost:3000/pay/thanks
+          PAYSTACK_FALLBACK_EMAIL_DOMAIN: pay.mmabon.ng
+          LLM_API_KEY: test-llm
+          AI_CLASSIFIER_MODEL: gpt-4o-mini

@@ -1,0 +1,5 @@
+id: pidgin1
+contact: { wa_id: "2348000000231831", profile_name: "Fixture pidgin1" }
+start: "2026-10-12T10:00:00+01:00"
+messages:
+  - { at: "+0m", from: customer, type: text, text: "hello about pricing", expect: { class: inquiry } }

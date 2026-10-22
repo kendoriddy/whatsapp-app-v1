@@ -1,0 +1,42 @@
+{
+  "object": "whatsapp_business_account",
+  "entry": [
+    {
+      "id": "local-waba-id",
+      "changes": [
+        {
+          "field": "messages",
+          "value": {
+            "messaging_product": "whatsapp",
+            "metadata": {
+              "display_phone_number": "2349079207221",
+              "phone_number_id": "local-phone-number-id"
+            },
+            "contacts": [
+              {
+                "profile": {
+                  "name": "Chidi"
+                },
+                "wa_id": "2348000000101"
+              }
+            ],
+            "messages": [
+              {
+                "from": "2348000000101",
+                "id": "wamid.FIXTURE.image.1",
+                "timestamp": "1729160001",
+                "type": "image",
+                "image": {
+                  "id": "media1",
+                  "mime_type": "image/jpeg",
+                  "sha256": "abc",
+                  "caption": "logo"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

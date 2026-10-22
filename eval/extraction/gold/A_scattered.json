@@ -1,0 +1,8 @@
+{
+  "fields": {
+    "product": { "value": "polo", "status": "provisional" },
+    "quantity": { "value": 80, "status": "provisional" },
+    "colour": { "value": "navy", "status": "provisional" },
+    "fabric": { "value": null, "status": "missing" }
+  }
+}
