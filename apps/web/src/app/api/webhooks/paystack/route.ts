@@ -2,7 +2,8 @@ import { createHash } from "node:crypto";
 import { getEnv } from "@/lib/env";
 import { getSql } from "@/lib/db";
 import { verifyPaystackSignature, PAYSTACK_IPS } from "@mmabon/paystack";
-import { createPgBossQueue, Jobs } from "@mmabon/queue";
+import { Jobs } from "@mmabon/queue";
+import { getQueue } from "@/lib/queue";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -32,8 +33,7 @@ export async function POST(req: Request) {
   `;
 
   if (rows[0]?.id) {
-    const queue = createPgBossQueue(env.DATABASE_URL_DIRECT);
-    await queue.start().catch(() => undefined);
+    const queue = await getQueue();
     await queue.send(Jobs.PAYSTACK_PROCESS_EVENT, {
       webhookEventId: rows[0].id,
     });

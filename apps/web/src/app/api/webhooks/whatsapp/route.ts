@@ -1,8 +1,10 @@
 import { createHash } from "node:crypto";
 import { getEnv } from "@/lib/env";
 import { getSql } from "@/lib/db";
+import { getQueue } from "@/lib/queue";
+import { processWebhookInline } from "@/lib/run-wa-jobs";
 import { timingSafeEqualString, verifyMetaSignature } from "@mmabon/whatsapp";
-import { createPgBossQueue, Jobs } from "@mmabon/queue";
+import { Jobs } from "@mmabon/queue";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -49,10 +51,6 @@ export async function POST(req: Request) {
 
   const body = JSON.parse(raw.toString("utf8")) as Record<string, unknown>;
   const sql = getSql();
-  const queue = createPgBossQueue(env.DATABASE_URL_DIRECT);
-
-  // Ensure boss schema exists for local; start is idempotent-ish
-  await queue.start().catch(() => undefined);
 
   const rows = await sql<{ id: number }[]>`
     insert into webhook_event (source, dedupe_key, signature_valid, headers, body)
@@ -67,16 +65,29 @@ export async function POST(req: Request) {
     returning id
   `;
 
-  if (rows[0]?.id) {
-    await queue.send(
-      Jobs.WA_PROCESS_EVENT,
-      { webhookEventId: rows[0].id },
-      {
-        singletonKey: `wa-evt-${rows[0].id}`,
-        retryLimit: 10,
-        retryBackoff: true,
-      },
-    );
+  const webhookEventId = rows[0]?.id;
+  if (webhookEventId) {
+    // Prefer in-request processing so messages aren't dropped when pg-boss /
+    // the worker can't get a session-pooler connection on Vercel.
+    try {
+      await processWebhookInline(webhookEventId);
+    } catch (err) {
+      console.error("[webhook] inline process failed", err);
+      try {
+        const queue = await getQueue();
+        await queue.send(
+          Jobs.WA_PROCESS_EVENT,
+          { webhookEventId },
+          {
+            singletonKey: `wa-evt-${webhookEventId}`,
+            retryLimit: 10,
+            retryBackoff: true,
+          },
+        );
+      } catch (enqueueErr) {
+        console.error("[webhook] enqueue failed", enqueueErr);
+      }
+    }
   }
 
   return new Response(null, { status: 200 });

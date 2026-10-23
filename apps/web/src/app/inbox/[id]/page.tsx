@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { api } from "@/lib/api-client";
+import { ThreadAiPanel } from "@/components/ThreadAiPanel";
 
 type Msg = {
   id: string;
@@ -61,20 +62,35 @@ export default function ThreadPage() {
       {error && <p style={{ color: "var(--danger)" }}>{error}</p>}
       <div className="panel thread-scroll">
         {messages.map((m) => (
-          <div key={m.id} className={`msg ${m.direction === "inbound" ? "in" : "out"}`}>
+          <div
+            key={m.id}
+            className={`msg ${m.direction === "inbound" ? "in" : "out"}`}
+          >
             <div>{m.textBody ?? m.caption ?? `[${m.type}]`}</div>
             <div className="muted" style={{ marginTop: 4 }}>
-              {m.direction === "outbound" ? m.status : m.classification ?? "inbound"}
+              {m.direction === "outbound"
+                ? m.status
+                : (m.classification ?? "inbound")}
             </div>
           </div>
         ))}
       </div>
       <div className="composer">
-        <textarea className="textarea" value={text} onChange={(e) => setText(e.target.value)} placeholder="Reply…" />
-        <button className="btn" disabled={!text || sending} onClick={() => void send()}>
+        <textarea
+          className="textarea"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Reply…"
+        />
+        <button
+          className="btn"
+          disabled={!text || sending}
+          onClick={() => void send()}
+        >
           Send
         </button>
       </div>
+      <ThreadAiPanel conversationId={params.id} />
     </div>
   );
 }

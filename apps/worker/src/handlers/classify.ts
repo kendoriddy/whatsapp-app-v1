@@ -1,16 +1,34 @@
 import { eq } from "drizzle-orm";
 import type { Db } from "@mmabon/db";
 import { message, aiRun, featureFlag, conversation } from "@mmabon/db";
-import { classifyMessage, CLASSIFY_PROMPT_VERSION, CLASSIFY_STEP_VERSION, createOpenAiLlmClient, createStubLlmClient } from "@mmabon/ai";
+import {
+  classifyMessage,
+  CLASSIFY_PROMPT_VERSION,
+  CLASSIFY_STEP_VERSION,
+  createGatewayLlmClient,
+  createStubLlmClient,
+} from "@mmabon/ai";
 import { loadEnv } from "@mmabon/shared";
 
-function heuristicClassify(text: string): { label: "inquiry" | "complaint" | "order" | "spam"; confidence: number; rationale: string } {
+function heuristicClassify(text: string): {
+  label: "inquiry" | "complaint" | "order" | "spam";
+  confidence: number;
+  rationale: string;
+} {
   const t = text.toLowerCase();
-  if (/buy|order|polo|qty|quantity|size|logo|need by|deadline|\d+\s*(pcs|pieces|polos)/.test(t)) {
+  if (
+    /buy|order|polo|qty|quantity|size|logo|need by|deadline|\d+\s*(pcs|pieces|polos)/.test(
+      t,
+    )
+  ) {
     return { label: "order", confidence: 0.85, rationale: "order keywords" };
   }
   if (/refund|complaint|delay|wrong|defect|angry|not happy/.test(t)) {
-    return { label: "complaint", confidence: 0.8, rationale: "complaint keywords" };
+    return {
+      label: "complaint",
+      confidence: 0.8,
+      rationale: "complaint keywords",
+    };
   }
   if (/crypto|lottery|click here|nigerian prince/.test(t)) {
     return { label: "spam", confidence: 0.9, rationale: "spam keywords" };
@@ -20,19 +38,44 @@ function heuristicClassify(text: string): { label: "inquiry" | "complaint" | "or
 
 export async function handleClassify(db: Db, messageId: string): Promise<void> {
   const env = loadEnv();
-  const [flag] = await db.select().from(featureFlag).where(eq(featureFlag.key, "ai.classify")).limit(1);
+  const [flag] = await db
+    .select()
+    .from(featureFlag)
+    .where(eq(featureFlag.key, "ai.classify"))
+    .limit(1);
   if (!flag?.enabled) return;
 
-  const [msg] = await db.select().from(message).where(eq(message.id, messageId)).limit(1);
+  const [msg] = await db
+    .select()
+    .from(message)
+    .where(eq(message.id, messageId))
+    .limit(1);
   if (!msg || msg.direction !== "inbound") return;
 
   const text = msg.textBody ?? msg.caption ?? "";
-  const llm =
-    env.APP_ENV === "local" && env.LLM_API_KEY.startsWith("sk-replace")
-      ? createStubLlmClient(() => heuristicClassify(text))
-      : createOpenAiLlmClient(env.LLM_API_KEY, env.LLM_BASE_URL);
+  const stubLocal =
+    env.APP_ENV === "local" &&
+    !env.CENCORI_API_KEY &&
+    !env.GEMINI_API_KEY &&
+    (!env.LLM_API_KEY || env.LLM_API_KEY.startsWith("sk-replace"));
+  const llm = stubLocal
+    ? createStubLlmClient(() => heuristicClassify(text))
+    : createGatewayLlmClient({
+        primary: env.AI_PRIMARY_PROVIDER,
+        cencoriApiKey: env.CENCORI_API_KEY,
+        llmApiKey: env.LLM_API_KEY,
+        llmBaseUrl: env.LLM_BASE_URL,
+        geminiApiKey: env.GEMINI_API_KEY,
+        openaiFallbackModel: env.AI_OPENAI_FALLBACK_MODEL,
+        geminiFallbackModel: env.AI_GEMINI_FALLBACK_MODEL,
+      });
 
-  const result = await classifyMessage(llm, env.AI_CLASSIFIER_MODEL, text || "[empty]", env.AI_CLASSIFY_CONFIDENCE_REVIEW_THRESHOLD);
+  const result = await classifyMessage(
+    llm,
+    env.AI_CLASSIFIER_MODEL,
+    text || "[empty]",
+    env.AI_CLASSIFY_CONFIDENCE_REVIEW_THRESHOLD,
+  );
 
   const [run] = await db
     .insert(aiRun)

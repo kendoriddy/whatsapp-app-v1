@@ -225,3 +225,101 @@ td {
     border-bottom: 1px solid var(--border);
   }
 }
+
+/* Floating AI brief on thread */
+.ai-panel {
+  position: fixed;
+  z-index: 40;
+  touch-action: none;
+  user-select: none;
+}
+.ai-panel-fab {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: linear-gradient(145deg, #2f9e64, #1f6b44);
+  color: #fff;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+.ai-panel-card {
+  width: min(22rem, calc(100vw - 1.5rem));
+  max-height: min(70vh, 28rem);
+  overflow: auto;
+  background: color-mix(in srgb, var(--panel) 94%, black);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 0.85rem 1rem 1rem;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+  cursor: grab;
+}
+.ai-panel-card:active {
+  cursor: grabbing;
+}
+.ai-panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.65rem;
+}
+.ai-panel-actions {
+  display: flex;
+  gap: 0.35rem;
+}
+.ai-panel-actions .btn {
+  padding: 0.25rem 0.55rem;
+  font-size: 0.8rem;
+}
+.ai-panel-drag-hint {
+  font-size: 0.75rem;
+}
+.ai-panel-body h3 {
+  margin: 0.15rem 0 0.35rem;
+  font-size: 1.05rem;
+}
+.ai-panel-body h4 {
+  margin: 0.75rem 0 0.25rem;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  font-weight: 600;
+}
+.ai-panel-body ul {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+.ai-panel-body li {
+  margin: 0.2rem 0;
+  font-size: 0.9rem;
+}
+.ai-panel-error {
+  color: var(--danger);
+  font-size: 0.85rem;
+}
+.ai-panel-meta {
+  margin-top: 0.85rem;
+  font-size: 0.72rem;
+}
+.ai-urgency {
+  display: inline-block;
+  margin: 0;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0.15rem 0.45rem;
+  border-radius: 6px;
+  background: var(--panel-2);
+  color: var(--muted);
+}
+.ai-urgency.medium {
+  color: var(--accent-2);
+}
+.ai-urgency.high {
+  color: #f0a0a0;
+  background: color-mix(in srgb, var(--danger) 25%, var(--panel-2));
+}

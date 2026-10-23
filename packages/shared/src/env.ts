@@ -26,16 +26,44 @@ const envSchema = z.object({
     .string()
     .optional()
     .transform((v) => v === "true"),
-  LLM_API_KEY: z.string().min(1),
-  LLM_BASE_URL: z.string().url().optional().or(z.literal("")).transform((v) => v || undefined),
-  AI_CLASSIFIER_MODEL: z.string().min(1),
+  // Default primary = openai. Set AI_PRIMARY_PROVIDER=cencori when Cencori has credit.
+  AI_PRIMARY_PROVIDER: z
+    .enum(["openai", "cencori", "gemini"])
+    .default("openai"),
+  CENCORI_API_KEY: z
+    .string()
+    .optional()
+    .or(z.literal(""))
+    .transform((v) => v || undefined),
+  LLM_API_KEY: z
+    .string()
+    .optional()
+    .or(z.literal(""))
+    .transform((v) => v || undefined),
+  LLM_BASE_URL: z
+    .string()
+    .url()
+    .optional()
+    .or(z.literal(""))
+    .transform((v) => v || undefined),
+  GEMINI_API_KEY: z
+    .string()
+    .optional()
+    .or(z.literal(""))
+    .transform((v) => v || undefined),
+  AI_CLASSIFIER_MODEL: z.string().min(1).default("gpt-4o-mini"),
+  AI_SUMMARY_MODEL: z.string().min(1).default("gpt-4o-mini"),
+  AI_OPENAI_FALLBACK_MODEL: z.string().min(1).default("gpt-4o-mini"),
+  AI_GEMINI_FALLBACK_MODEL: z.string().min(1).default("gemini-2.0-flash"),
   AI_EXTRACTOR_MODEL: z.string().optional(),
   AI_SUGGEST_MODEL: z.string().optional(),
   AI_TRANSCRIBE_MODEL: z.string().optional(),
   AI_CLASSIFY_CONFIDENCE_REVIEW_THRESHOLD: z.coerce.number().default(0.7),
   AI_CLASSIFY_MEDIA_LOOKAHEAD_SECONDS: z.coerce.number().int().default(60),
   SENTRY_DSN: z.string().optional(),
-  LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),
+  LOG_LEVEL: z
+    .enum(["fatal", "error", "warn", "info", "debug", "trace"])
+    .default("info"),
   BUSINESS_TIMEZONE: z.string().default("Africa/Lagos"),
 });
 
@@ -47,8 +75,19 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
   if (cached) return cached;
   const parsed = envSchema.safeParse(source);
   if (!parsed.success) {
-    const msg = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
+    const msg = parsed.error.issues
+      .map((i) => `${i.path.join(".")}: ${i.message}`)
+      .join("; ");
     throw new Error(`Invalid environment: ${msg}`);
+  }
+  if (
+    !parsed.data.CENCORI_API_KEY &&
+    !parsed.data.LLM_API_KEY &&
+    !parsed.data.GEMINI_API_KEY
+  ) {
+    throw new Error(
+      "Invalid environment: set CENCORI_API_KEY and/or LLM_API_KEY and/or GEMINI_API_KEY",
+    );
   }
   cached = parsed.data;
   return cached;

@@ -23,13 +23,21 @@ export interface Queue {
 
 const ALL_JOB_NAMES = Object.values(Jobs);
 
+export type PgBossQueueOpts = {
+  /** pg pool size (Supabase session pooler ~15 total — keep this tiny). */
+  max?: number;
+  applicationName?: string;
+};
+
 export function createPgBossQueue(
   connectionString: string,
+  opts: PgBossQueueOpts = {},
 ): Queue & { boss: PgBoss } {
   const boss = new PgBoss({
     connectionString,
     schema: "pgboss",
-    application_name: "mmabon-desk",
+    application_name: opts.applicationName ?? "mmabon-desk",
+    max: opts.max ?? 2,
   });
 
   // pg-boss v10+ requires createQueue before send/work; swallow so callers don't crash the process

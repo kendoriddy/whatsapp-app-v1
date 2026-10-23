@@ -3,10 +3,15 @@ import { outboundMessage, conversation, featureFlag } from "@mmabon/db";
 import { getDb } from "@/lib/db";
 import { requireRole, jsonError, assertCan } from "@/lib/auth";
 import { isWindowOpen, loadEnv } from "@mmabon/shared";
-import { createPgBossQueue, Jobs } from "@mmabon/queue";
+import { Jobs } from "@mmabon/queue";
 import { SEND_ROLES } from "@mmabon/domain";
+import { getQueue } from "@/lib/queue";
+import { sendOutboundInline } from "@/lib/run-wa-jobs";
 
-export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
+export async function POST(
+  req: Request,
+  ctx: { params: Promise<{ id: string }> },
+) {
   try {
     const user = await requireRole(req);
     const { id: conversationId } = await ctx.params;
@@ -21,16 +26,34 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
     const db = getDb();
     const env = loadEnv();
-    const [conv] = await db.select().from(conversation).where(eq(conversation.id, conversationId)).limit(1);
+    const [conv] = await db
+      .select()
+      .from(conversation)
+      .where(eq(conversation.id, conversationId))
+      .limit(1);
     if (!conv) return jsonError("NOT_FOUND", "Conversation not found", 404);
 
     if (body.kind !== "template" && body.action !== "save_draft") {
-      if (!isWindowOpen(conv.lastInboundAt, new Date(), env.WINDOW_SAFETY_MARGIN_SECONDS)) {
-        return jsonError("WINDOW_CLOSED", "The 24-hour window has closed. Choose an approved template.", 422);
+      if (
+        !isWindowOpen(
+          conv.lastInboundAt,
+          new Date(),
+          env.WINDOW_SAFETY_MARGIN_SECONDS,
+        )
+      ) {
+        return jsonError(
+          "WINDOW_CLOSED",
+          "The 24-hour window has closed. Choose an approved template.",
+          422,
+        );
       }
     }
 
-    const [paused] = await db.select().from(featureFlag).where(eq(featureFlag.key, "sends.paused")).limit(1);
+    const [paused] = await db
+      .select()
+      .from(featureFlag)
+      .where(eq(featureFlag.key, "sends.paused"))
+      .limit(1);
     if (paused?.enabled && body.action === "send") {
       return jsonError("SENDS_PAUSED", "Sending is paused", 422);
     }
@@ -69,14 +92,31 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       .returning();
 
     if (status === "approved") {
-      const queue = createPgBossQueue(env.DATABASE_URL_DIRECT);
-      await queue.start().catch(() => undefined);
-      await queue.send(Jobs.WA_SEND_OUTBOUND, { outboundId: row!.id }, { singletonKey: `send-${row!.id}` });
+      try {
+        await sendOutboundInline(row!.id);
+      } catch (sendErr) {
+        console.error("[outbound] inline send failed", sendErr);
+        try {
+          const queue = await getQueue();
+          await queue.send(
+            Jobs.WA_SEND_OUTBOUND,
+            { outboundId: row!.id },
+            { singletonKey: `send-${row!.id}` },
+          );
+        } catch (enqueueErr) {
+          console.error("[outbound] enqueue failed", enqueueErr);
+          return jsonError("SEND_ENQUEUE_FAILED", String(enqueueErr), 500);
+        }
+      }
     }
 
     return Response.json(row);
   } catch (e) {
     const status = (e as { status?: number }).status ?? 500;
-    return jsonError(String((e as Error).message), (e as Error).message, status);
+    return jsonError(
+      String((e as Error).message),
+      (e as Error).message,
+      status,
+    );
   }
 }
