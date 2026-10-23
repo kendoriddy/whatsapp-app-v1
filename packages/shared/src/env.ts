@@ -26,10 +26,10 @@ const envSchema = z.object({
     .string()
     .optional()
     .transform((v) => v === "true"),
-  // Default Cencori (OpenAI often blocked on org networks). Failover → Gemini → OpenAI.
+  // OpenAI first; on failure → Gemini (then Cencori if configured).
   AI_PRIMARY_PROVIDER: z
     .enum(["openai", "cencori", "gemini"])
-    .default("cencori"),
+    .default("openai"),
   CENCORI_API_KEY: z
     .string()
     .optional()

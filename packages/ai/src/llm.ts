@@ -182,10 +182,10 @@ export function createGatewayLlmClient(cfg: GatewayLlmConfig): LlmClient {
     });
   }
 
-  const primary = cfg.primary ?? "cencori";
-  // Prefer Gemini over OpenAI in the failover list (OpenAI is often blocked by org networks).
+  // OpenAI first; only on failure → Gemini; Cencori last if configured.
+  const primary = cfg.primary ?? "openai";
   const rest: LlmPrimaryProvider[] = (
-    ["gemini", "openai", "cencori"] as LlmPrimaryProvider[]
+    ["openai", "gemini", "cencori"] as LlmPrimaryProvider[]
   ).filter((p) => p !== primary);
   const order: LlmPrimaryProvider[] = [primary, ...rest];
 
