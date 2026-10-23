@@ -62,6 +62,7 @@ export async function POST(
     const result = await draftInvoiceFromThread(llm, {
       model,
       messages: lines,
+      timeZone: env.BUSINESS_TIMEZONE || "Africa/Lagos",
     });
 
     return Response.json({

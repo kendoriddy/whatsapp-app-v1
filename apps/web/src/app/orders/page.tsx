@@ -118,6 +118,10 @@ export default function OrdersPage() {
   const [detail, setDetail] = useState<OrderDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
+  const [editNeedBy, setEditNeedBy] = useState("");
+  const [editEventDate, setEditEventDate] = useState("");
+  const [datesBusy, setDatesBusy] = useState(false);
+  const [datesNote, setDatesNote] = useState<string | null>(null);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -130,6 +134,23 @@ export default function OrdersPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  const loadDetail = useCallback((id: string) => {
+    setDetailLoading(true);
+    setDetailError(null);
+    return api<OrderDetail>(`/api/orders/${id}`)
+      .then((d) => {
+        setDetail(d);
+        setEditNeedBy(d.order.needBy?.slice(0, 10) ?? "");
+        setEditEventDate(d.order.eventDate?.slice(0, 10) ?? "");
+        return d;
+      })
+      .catch((e) => {
+        setDetailError(String(e.message));
+        throw e;
+      })
+      .finally(() => setDetailLoading(false));
+  }, []);
+
   useEffect(() => {
     void load();
   }, [load]);
@@ -138,14 +159,21 @@ export default function OrdersPage() {
     if (!selectedId) {
       setDetail(null);
       setDetailError(null);
+      setDatesNote(null);
+      setEditNeedBy("");
+      setEditEventDate("");
       return;
     }
     let cancelled = false;
     setDetailLoading(true);
     setDetailError(null);
+    setDatesNote(null);
     api<OrderDetail>(`/api/orders/${selectedId}`)
       .then((d) => {
-        if (!cancelled) setDetail(d);
+        if (cancelled) return;
+        setDetail(d);
+        setEditNeedBy(d.order.needBy?.slice(0, 10) ?? "");
+        setEditEventDate(d.order.eventDate?.slice(0, 10) ?? "");
       })
       .catch((e) => {
         if (!cancelled) setDetailError(String(e.message));
@@ -157,6 +185,77 @@ export default function OrdersPage() {
       cancelled = true;
     };
   }, [selectedId]);
+
+  async function saveDates() {
+    if (!selectedId) return;
+    setDatesBusy(true);
+    setDatesNote(null);
+    try {
+      await api(`/api/orders/${selectedId}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          need_by: editNeedBy || null,
+          event_date: editEventDate || null,
+        }),
+      });
+      setDatesNote("Dates saved.");
+      await loadDetail(selectedId);
+      await load();
+    } catch (e) {
+      setDatesNote(String((e as Error).message));
+    } finally {
+      setDatesBusy(false);
+    }
+  }
+
+  async function merlinFillDates() {
+    if (!detail) return;
+    setDatesBusy(true);
+    setDatesNote(null);
+    try {
+      const res = await api<{
+        draft: {
+          need_by: string | null;
+          event_date: string | null;
+          notes: string | null;
+        };
+      }>(`/api/conversations/${detail.order.conversationId}/ai/invoice-draft`, {
+        method: "POST",
+        body: "{}",
+      });
+      const d = res.draft;
+      if (d.need_by) setEditNeedBy(d.need_by);
+      if (d.event_date) setEditEventDate(d.event_date);
+      if (!d.need_by && !d.event_date) {
+        setDatesNote(
+          d.notes || "Merlin found no clear need-by / event date in the chat.",
+        );
+        return;
+      }
+      await api(`/api/orders/${detail.order.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          need_by: d.need_by ?? (editNeedBy || null),
+          event_date: d.event_date ?? (editEventDate || null),
+        }),
+      });
+      setDatesNote(
+        [
+          d.need_by ? `Need by ${d.need_by}` : null,
+          d.event_date ? `Event ${d.event_date}` : null,
+          "saved from chat.",
+        ]
+          .filter(Boolean)
+          .join(" · "),
+      );
+      await loadDetail(detail.order.id);
+      await load();
+    } catch (e) {
+      setDatesNote(String((e as Error).message));
+    } finally {
+      setDatesBusy(false);
+    }
+  }
 
   const selectedRow = items.find((o) => o.id === selectedId) ?? null;
 
@@ -279,15 +378,57 @@ export default function OrdersPage() {
                 </dd>
                 <dt>Owner</dt>
                 <dd>{detail.ownerName ?? "—"}</dd>
-                <dt>Need by</dt>
-                <dd>{detail.order.needBy ?? "—"}</dd>
-                <dt>Event date</dt>
-                <dd>{detail.order.eventDate ?? "—"}</dd>
                 <dt>Created</dt>
                 <dd>{formatWhen(detail.order.createdAt)}</dd>
                 <dt>Updated</dt>
                 <dd>{formatWhen(detail.order.updatedAt)}</dd>
               </dl>
+              <div className="invoice-dates" style={{ marginTop: "0.75rem" }}>
+                <label>
+                  Need by
+                  <input
+                    className="input"
+                    type="date"
+                    value={editNeedBy}
+                    onChange={(e) => setEditNeedBy(e.target.value)}
+                  />
+                </label>
+                <label>
+                  Event date
+                  <input
+                    className="input"
+                    type="date"
+                    value={editEventDate}
+                    onChange={(e) => setEditEventDate(e.target.value)}
+                  />
+                </label>
+              </div>
+              <div
+                className="invoice-form-actions"
+                style={{ marginTop: "0.65rem" }}
+              >
+                <button
+                  type="button"
+                  className="btn secondary"
+                  disabled={datesBusy}
+                  onClick={() => void merlinFillDates()}
+                >
+                  {datesBusy ? "Merlin…" : "Ask Merlin for dates"}
+                </button>
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={datesBusy}
+                  onClick={() => void saveDates()}
+                >
+                  Save dates
+                </button>
+              </div>
+              {datesNote && (
+                <p className="muted" style={{ marginTop: "0.5rem" }}>
+                  {datesNote}
+                </p>
+              )}
             </section>
 
             <section>

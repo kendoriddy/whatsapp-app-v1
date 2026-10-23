@@ -28,6 +28,15 @@ function formatNaira(kobo: number): string {
   })}`;
 }
 
+function parseDateInput(value: unknown): string | null {
+  if (value == null || value === "") return null;
+  if (typeof value !== "string") return null;
+  const s = value.trim().slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
+  if (!Number.isFinite(Date.parse(`${s}T12:00:00Z`))) return null;
+  return s;
+}
+
 function resolveChargeKobo(args: {
   totalKobo: number;
   paymentKind: "deposit" | "balance" | "full";
@@ -122,7 +131,20 @@ export async function POST(
       /** Fixed ₦ when payment_kind=deposit or balance */
       deposit_amount_naira?: number;
       customer_email?: string;
+      /** YYYY-MM-DD delivery / ready-by deadline */
+      need_by?: string | null;
+      /** YYYY-MM-DD event / occasion date */
+      event_date?: string | null;
     };
+
+    const needBy = parseDateInput(body.need_by);
+    const eventDate = parseDateInput(body.event_date);
+    if (body.need_by && !needBy) {
+      return jsonError("VALIDATION", "need_by must be YYYY-MM-DD", 400);
+    }
+    if (body.event_date && !eventDate) {
+      return jsonError("VALIDATION", "event_date must be YYYY-MM-DD", 400);
+    }
 
     const description = (body.description ?? "Order").trim().slice(0, 200);
     const amountNaira = Number(body.amount_naira);
@@ -251,14 +273,31 @@ export async function POST(
           ownerId: user.id,
           stage: "quoted",
           budgetKobo: totalKobo,
+          needBy,
+          eventDate,
         })
         .returning();
       order = created!;
     } else {
       await db
         .update(orders)
-        .set({ stage: "quoted", budgetKobo: totalKobo, updatedAt: new Date() })
+        .set({
+          stage: "quoted",
+          budgetKobo: totalKobo,
+          ...(needBy ? { needBy } : {}),
+          ...(eventDate ? { eventDate } : {}),
+          // Explicit null clears only when client sends empty string intentionally via null fields
+          ...(body.need_by === null ? { needBy: null } : {}),
+          ...(body.event_date === null ? { eventDate: null } : {}),
+          updatedAt: new Date(),
+        })
         .where(eq(orders.id, order.id));
+      const [freshOrder] = await db
+        .select()
+        .from(orders)
+        .where(eq(orders.id, order.id))
+        .limit(1);
+      order = freshOrder ?? order;
     }
 
     const priorQuotes = await db
@@ -366,6 +405,9 @@ export async function POST(
           ? "Balance"
           : "Full payment";
 
+    const effectiveNeedBy = order.needBy ?? needBy;
+    const effectiveEventDate = order.eventDate ?? eventDate;
+
     const linkBody = [
       `Hello${c.profileName ? ` ${c.profileName}` : ""},`,
       ``,
@@ -375,12 +417,16 @@ export async function POST(
       remainingAfterThisKobo > 0
         ? `Remaining after this payment: ${formatNaira(remainingAfterThisKobo)}`
         : `Remaining after this payment: ${formatNaira(0)} (fully covered)`,
+      effectiveNeedBy ? `Need by: ${effectiveNeedBy}` : null,
+      effectiveEventDate ? `Event date: ${effectiveEventDate}` : null,
       ``,
       `Pay securely here:`,
       init.authorization_url,
       ``,
       `Reference: ${init.reference}`,
-    ].join("\n");
+    ]
+      .filter((line): line is string => line !== null)
+      .join("\n");
 
     const [outbound] = await db
       .insert(outboundMessage)

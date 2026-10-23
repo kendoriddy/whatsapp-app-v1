@@ -8,7 +8,17 @@ import {
   staffUser,
 } from "@mmabon/db";
 import { getDb } from "@/lib/db";
-import { jsonError, requireRole } from "@/lib/auth";
+import { assertCan, jsonError, requireRole } from "@/lib/auth";
+
+function parseDateInput(value: unknown): string | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null || value === "") return null;
+  if (typeof value !== "string") return undefined;
+  const s = value.trim().slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return undefined;
+  if (!Number.isFinite(Date.parse(`${s}T12:00:00Z`))) return undefined;
+  return s;
+}
 
 export async function GET(
   req: Request,
@@ -102,6 +112,83 @@ export async function GET(
       payments,
       changes,
     });
+  } catch (e) {
+    const status = (e as { status?: number }).status ?? 500;
+    return jsonError(
+      String((e as Error).message),
+      (e as Error).message,
+      status,
+    );
+  }
+}
+
+export async function PATCH(
+  req: Request,
+  ctx: { params: Promise<{ id: string }> },
+) {
+  try {
+    const user = await requireRole(req);
+    assertCan(user, "orders_edit");
+    const { id } = await ctx.params;
+    const body = (await req.json()) as {
+      need_by?: string | null;
+      event_date?: string | null;
+    };
+
+    const needBy = parseDateInput(body.need_by);
+    const eventDate = parseDateInput(body.event_date);
+    if (body.need_by !== undefined && needBy === undefined) {
+      return jsonError(
+        "VALIDATION",
+        "need_by must be YYYY-MM-DD or empty",
+        400,
+      );
+    }
+    if (body.event_date !== undefined && eventDate === undefined) {
+      return jsonError(
+        "VALIDATION",
+        "event_date must be YYYY-MM-DD or empty",
+        400,
+      );
+    }
+
+    const patch: {
+      needBy?: string | null;
+      eventDate?: string | null;
+      updatedAt: Date;
+    } = { updatedAt: new Date() };
+    if (body.need_by !== undefined) patch.needBy = needBy ?? null;
+    if (body.event_date !== undefined) patch.eventDate = eventDate ?? null;
+
+    const db = getDb();
+    const [before] = await db
+      .select()
+      .from(orders)
+      .where(eq(orders.id, id))
+      .limit(1);
+    if (!before) return jsonError("NOT_FOUND", "Order not found", 404);
+
+    const [updated] = await db
+      .update(orders)
+      .set(patch)
+      .where(eq(orders.id, id))
+      .returning();
+
+    await db.insert(changeEvent).values({
+      orderId: id,
+      actorKind: "staff",
+      actorId: user.id,
+      kind: "field_change",
+      target: "dates",
+      before: { needBy: before.needBy, eventDate: before.eventDate },
+      after: {
+        needBy: updated!.needBy,
+        eventDate: updated!.eventDate,
+      },
+      reason: "staff.dates_update",
+    });
+
+    return Response.json(updated);
   } catch (e) {
     const status = (e as { status?: number }).status ?? 500;
     return jsonError(

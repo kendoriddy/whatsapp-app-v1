@@ -51,6 +51,8 @@ export function ThreadInvoicePanel({
   const [description, setDescription] = useState("");
   const [amountNaira, setAmountNaira] = useState("");
   const [deliveryNaira, setDeliveryNaira] = useState("");
+  const [needBy, setNeedBy] = useState("");
+  const [eventDate, setEventDate] = useState("");
   const [advanceMode, setAdvanceMode] = useState<AdvanceMode>("percent");
   const [depositPercent, setDepositPercent] = useState("50");
   const [depositAmount, setDepositAmount] = useState("");
@@ -109,6 +111,8 @@ export function ThreadInvoicePanel({
           amount_naira: number | null;
           delivery_naira: number | null;
           deposit_percent: number | null;
+          need_by: string | null;
+          event_date: string | null;
           notes: string | null;
         };
       }>(`/api/conversations/${conversationId}/ai/invoice-draft`, {
@@ -119,15 +123,23 @@ export function ThreadInvoicePanel({
       if (d.description) setDescription(d.description);
       if (d.amount_naira != null) setAmountNaira(String(d.amount_naira));
       if (d.delivery_naira != null) setDeliveryNaira(String(d.delivery_naira));
+      if (d.need_by) setNeedBy(d.need_by);
+      if (d.event_date) setEventDate(d.event_date);
       if (d.deposit_percent != null) {
         setAdvanceMode("percent");
         setDepositPercent(String(d.deposit_percent));
       }
+      const dateBits = [
+        d.need_by ? `need by ${d.need_by}` : null,
+        d.event_date ? `event ${d.event_date}` : null,
+      ].filter(Boolean);
       setMerlinNote(
         d.notes ||
           (d.amount_naira == null
             ? "Merlin couldn’t find a clear amount — please fill manually."
-            : "Fields filled from the chat. Review before sending."),
+            : dateBits.length
+              ? `Filled from chat (${dateBits.join(", ")}). Review before sending.`
+              : "Fields filled from the chat. Review before sending."),
       );
     } catch (e) {
       setError(String((e as Error).message));
@@ -153,6 +165,8 @@ export function ThreadInvoicePanel({
         description: description.trim() || "Order",
         amount_naira: amount,
         delivery_naira: Number(deliveryNaira) || 0,
+        need_by: needBy || null,
+        event_date: eventDate || null,
       };
 
       if (advanceMode === "full") {
@@ -190,6 +204,8 @@ export function ThreadInvoicePanel({
       setDescription("");
       setAmountNaira("");
       setDeliveryNaira("");
+      setNeedBy("");
+      setEventDate("");
       setDepositAmount("");
       await load();
       onSent?.();
@@ -295,6 +311,26 @@ export function ThreadInvoicePanel({
               placeholder="0"
             />
           </label>
+          <div className="invoice-dates">
+            <label>
+              Need by
+              <input
+                className="input"
+                type="date"
+                value={needBy}
+                onChange={(e) => setNeedBy(e.target.value)}
+              />
+            </label>
+            <label>
+              Event date
+              <input
+                className="input"
+                type="date"
+                value={eventDate}
+                onChange={(e) => setEventDate(e.target.value)}
+              />
+            </label>
+          </div>
 
           <fieldset className="invoice-advance">
             <legend>Pay now (advance)</legend>
