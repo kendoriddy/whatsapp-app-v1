@@ -22,7 +22,81 @@ function nairaToKobo(naira: number): number {
 }
 
 function formatNaira(kobo: number): string {
-  return `₦${(kobo / 100).toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return `₦${(kobo / 100).toLocaleString("en-NG", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
+
+function resolveChargeKobo(args: {
+  totalKobo: number;
+  paymentKind: "deposit" | "balance" | "full";
+  depositPercent?: number;
+  depositAmountNaira?: number;
+}): { chargeKobo: number; paymentKind: "deposit" | "balance" | "full" } {
+  const { totalKobo } = args;
+  if (args.paymentKind === "full") {
+    return { chargeKobo: totalKobo, paymentKind: "full" };
+  }
+
+  if (args.paymentKind === "balance") {
+    // Caller should pass remaining as deposit_amount_naira for balance links.
+    const bal = nairaToKobo(Number(args.depositAmountNaira ?? 0));
+    if (bal <= 0 || bal > totalKobo) {
+      throw Object.assign(new Error("Invalid balance amount"), {
+        status: 400,
+        code: "VALIDATION",
+      });
+    }
+    return {
+      chargeKobo: bal,
+      paymentKind: bal >= totalKobo ? "full" : "balance",
+    };
+  }
+
+  // deposit
+  let charge = 0;
+  if (
+    typeof args.depositPercent === "number" &&
+    Number.isFinite(args.depositPercent) &&
+    args.depositPercent > 0
+  ) {
+    if (args.depositPercent > 100) {
+      throw Object.assign(new Error("deposit_percent must be 1–100"), {
+        status: 400,
+        code: "VALIDATION",
+      });
+    }
+    charge = Math.round((totalKobo * args.depositPercent) / 100);
+  } else if (
+    typeof args.depositAmountNaira === "number" &&
+    Number.isFinite(args.depositAmountNaira) &&
+    args.depositAmountNaira > 0
+  ) {
+    charge = nairaToKobo(args.depositAmountNaira);
+  } else {
+    throw Object.assign(
+      new Error("Provide deposit_percent or deposit_amount_naira"),
+      { status: 400, code: "VALIDATION" },
+    );
+  }
+
+  if (charge <= 0) {
+    throw Object.assign(new Error("Deposit must be greater than 0"), {
+      status: 400,
+      code: "VALIDATION",
+    });
+  }
+  if (charge > totalKobo) {
+    throw Object.assign(new Error("Deposit cannot exceed invoice total"), {
+      status: 400,
+      code: "VALIDATION",
+    });
+  }
+  if (charge >= totalKobo) {
+    return { chargeKobo: totalKobo, paymentKind: "full" };
+  }
+  return { chargeKobo: charge, paymentKind: "deposit" };
 }
 
 export async function POST(
@@ -43,13 +117,21 @@ export async function POST(
       delivery_naira?: number;
       discount_naira?: number;
       payment_kind?: "deposit" | "balance" | "full";
+      /** 1–100 when payment_kind=deposit */
+      deposit_percent?: number;
+      /** Fixed ₦ when payment_kind=deposit or balance */
+      deposit_amount_naira?: number;
       customer_email?: string;
     };
 
     const description = (body.description ?? "Order").trim().slice(0, 200);
     const amountNaira = Number(body.amount_naira);
     if (!Number.isFinite(amountNaira) || amountNaira <= 0) {
-      return jsonError("VALIDATION", "amount_naira must be a positive number", 400);
+      return jsonError(
+        "VALIDATION",
+        "amount_naira must be a positive number",
+        400,
+      );
     }
     const deliveryKobo = nairaToKobo(Number(body.delivery_naira ?? 0) || 0);
     const discountKobo = nairaToKobo(Number(body.discount_naira ?? 0) || 0);
@@ -58,7 +140,37 @@ export async function POST(
     if (totalKobo <= 0) {
       return jsonError("VALIDATION", "Total must be greater than 0", 400);
     }
-    const paymentKind = body.payment_kind ?? "full";
+
+    const requestedKind = body.payment_kind ?? "full";
+    let chargeKobo: number;
+    let paymentKind: "deposit" | "balance" | "full";
+    try {
+      const resolved = resolveChargeKobo({
+        totalKobo,
+        paymentKind: requestedKind,
+        depositPercent:
+          body.deposit_percent !== undefined
+            ? Number(body.deposit_percent)
+            : undefined,
+        depositAmountNaira:
+          body.deposit_amount_naira !== undefined
+            ? Number(body.deposit_amount_naira)
+            : undefined,
+      });
+      chargeKobo = resolved.chargeKobo;
+      paymentKind = resolved.paymentKind;
+    } catch (err) {
+      const status = (err as { status?: number }).status ?? 400;
+      return jsonError("VALIDATION", (err as Error).message, status);
+    }
+
+    const remainingAfterThisKobo = Math.max(0, totalKobo - chargeKobo);
+    const depositPercentApplied =
+      paymentKind === "deposit" && totalKobo > 0
+        ? Math.round((chargeKobo / totalKobo) * 1000) / 10
+        : paymentKind === "full"
+          ? 100
+          : null;
 
     const db = getDb();
     const env = loadEnv();
@@ -113,7 +225,6 @@ export async function POST(
       (body.customer_email ?? c.email)?.trim() ||
       `wa${c.waId}@${env.PAYSTACK_FALLBACK_EMAIL_DOMAIN}`;
 
-    // Reuse latest non-lost/fulfilled order on this conversation, or create one.
     let [order] = await db
       .select()
       .from(orders)
@@ -159,7 +270,6 @@ export async function POST(
     const version = (priorQuotes[0]?.version ?? 0) + 1;
     const quoteRef = `${order.ref}-Q`;
 
-    // Supersede earlier sent/draft quotes on this order.
     await db
       .update(quote)
       .set({ status: "superseded", updatedAt: new Date() })
@@ -200,23 +310,36 @@ export async function POST(
       .where(eq(paymentRequest.quoteId, q!.id));
     const paySeq = priorPays.length + 1;
     const kindCode =
-      paymentKind === "deposit" ? "DEP" : paymentKind === "balance" ? "BAL" : "FULL";
+      paymentKind === "deposit"
+        ? "DEP"
+        : paymentKind === "balance"
+          ? "BAL"
+          : "FULL";
     const reference = `${quoteRef}-v${version}-${kindCode}-${paySeq}`.replace(
       /[^A-Za-z0-9_-]/g,
       "",
     );
 
+    const callbackBase = env.PAYSTACK_CALLBACK_URL.replace(/\/$/, "");
+    const callbackUrl = `${callbackBase}?reference=${encodeURIComponent(reference)}`;
+
     const paystack = createPaystackClient(env.PAYSTACK_SECRET_KEY);
     const init = await paystack.initializeTransaction({
       email,
-      amountKobo: totalKobo,
+      amountKobo: chargeKobo,
       reference,
-      callbackUrl: env.PAYSTACK_CALLBACK_URL,
+      callbackUrl,
       metadata: {
         order_id: order.id,
         quote_id: q!.id,
         conversation_id: conversationId,
         order_ref: order.ref,
+        kind: paymentKind,
+        quote_total_kobo: totalKobo,
+        charge_kobo: chargeKobo,
+        remaining_kobo: remainingAfterThisKobo,
+        deposit_percent: depositPercentApplied,
+        description,
       },
     });
 
@@ -226,7 +349,7 @@ export async function POST(
         orderId: order.id,
         quoteId: q!.id,
         kind: paymentKind,
-        amountKobo: totalKobo,
+        amountKobo: chargeKobo,
         paystackReference: init.reference,
         paystackAccessCode: init.access_code,
         authorizationUrl: init.authorization_url,
@@ -236,11 +359,22 @@ export async function POST(
       })
       .returning();
 
+    const kindLabel =
+      paymentKind === "deposit"
+        ? `Deposit${depositPercentApplied != null ? ` (${depositPercentApplied}%)` : ""}`
+        : paymentKind === "balance"
+          ? "Balance"
+          : "Full payment";
+
     const linkBody = [
       `Hello${c.profileName ? ` ${c.profileName}` : ""},`,
       ``,
       `Invoice ${quoteRef} v${version} — ${description}`,
-      `Amount: ${formatNaira(totalKobo)}`,
+      `Invoice total: ${formatNaira(totalKobo)}`,
+      `${kindLabel} due now: ${formatNaira(chargeKobo)}`,
+      remainingAfterThisKobo > 0
+        ? `Remaining after this payment: ${formatNaira(remainingAfterThisKobo)}`
+        : `Remaining after this payment: ${formatNaira(0)} (fully covered)`,
       ``,
       `Pay securely here:`,
       init.authorization_url,
@@ -323,9 +457,20 @@ export async function POST(
       payment: freshPay,
       outbound: sentOut,
       authorization_url: init.authorization_url,
+      totals: {
+        invoice_total_kobo: totalKobo,
+        charge_kobo: chargeKobo,
+        remaining_kobo: remainingAfterThisKobo,
+        payment_kind: paymentKind,
+        deposit_percent: depositPercentApplied,
+      },
     });
   } catch (e) {
     const status = (e as { status?: number }).status ?? 500;
-    return jsonError(String((e as Error).message), (e as Error).message, status);
+    return jsonError(
+      String((e as Error).message),
+      (e as Error).message,
+      status,
+    );
   }
 }

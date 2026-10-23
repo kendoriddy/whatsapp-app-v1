@@ -38,8 +38,13 @@ Use test keys in local/staging; live keys in production. Feature flags `orders.m
    https://whatsapp-app-v1.vercel.app/api/webhooks/paystack
    ```
    (General form: `${APP_BASE_URL}/api/webhooks/paystack`.)
-3. Save. Use the **same mode** as your secret key (`sk_test_…` → Test webhook; `sk_live_…` → Live webhook).
-4. Optional: click **Send test webhook** / trigger a test `charge.success` and confirm a row appears in `webhook_event` with `source='paystack'`.
-5. Ensure Vercel env has `PAYSTACK_SECRET_KEY` (HMAC key for `x-paystack-signature`), `PAYSTACK_CALLBACK_URL` (`…/pay/thanks`), and `PAYSTACK_FALLBACK_EMAIL_DOMAIN`.
+3. **Live callback URL** (customer browser redirect after checkout — not the webhook):
+   ```
+   https://whatsapp-app-v1.vercel.app/pay/thanks
+   ```
+   Same value as env `PAYSTACK_CALLBACK_URL`. Paystack appends `?reference=…` / `trxref=…`; the thanks page shows paid amount + **remaining balance**.
+4. Save. Use the **same mode** as your secret key (`sk_test_…` → Test; `sk_live_…` → Live).
+5. Optional: send a test webhook and confirm a `webhook_event` row with `source='paystack'`.
+6. Ensure Vercel env has `PAYSTACK_SECRET_KEY`, `PAYSTACK_CALLBACK_URL`, and `PAYSTACK_FALLBACK_EMAIL_DOMAIN`.
 
-Staff flow: open a conversation → **Create invoice** → amount → **Create invoice & send link**. Customer pays; Paystack POSTs `charge.success`; desk marks payment + order `paid`.
+Staff flow: conversation → **Create invoice** → set total + advance (full / deposit % / deposit ₦) → optional **Ask Merlin to fill** → **Create invoice & send link**. Paystack charges only the advance; receipt (browser + WhatsApp) shows remaining.
