@@ -110,7 +110,13 @@ export async function POST(
       }
     }
 
-    return Response.json(row);
+    // Return post-send row (sent/failed + wamid), not the pre-send insert snapshot.
+    const [fresh] = await db
+      .select()
+      .from(outboundMessage)
+      .where(eq(outboundMessage.id, row!.id))
+      .limit(1);
+    return Response.json(fresh ?? row);
   } catch (e) {
     const status = (e as { status?: number }).status ?? 500;
     return jsonError(
