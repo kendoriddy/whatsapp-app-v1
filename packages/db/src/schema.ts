@@ -487,3 +487,17 @@ export const changeEvent = pgTable("change_event", {
   notifyRoles: appRole("notify_roles").array().notNull().default([]),
   acknowledged: jsonb("acknowledged").notNull().default({}),
 });
+
+/** Staff knowledge bank — source files extracted to markdown for Merlin. */
+export const knowledgeDoc = pgTable("knowledge_doc", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  title: text("title").notNull(),
+  sourceFilename: text("source_filename").notNull(),
+  sourceMime: text("source_mime").notNull(),
+  markdown: text("markdown").notNull(),
+  charCount: integer("char_count").notNull().default(0),
+  enabled: boolean("enabled").notNull().default(true),
+  createdBy: uuid("created_by").references(() => staffUser.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});

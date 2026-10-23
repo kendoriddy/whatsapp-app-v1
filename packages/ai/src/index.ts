@@ -5,4 +5,5 @@ export * from "./steps/extract_brief.js";
 export * from "./steps/suggest_reply.js";
 export * from "./steps/summarize_thread.js";
 export * from "./steps/draft_invoice.js";
+export * from "./steps/merlin_reply.js";
 export * from "./validators/grounding.js";

@@ -5,6 +5,7 @@ export const Jobs = {
   AI_CLASSIFY_MESSAGE: "ai.classify_message",
   AI_EXTRACT_BRIEF: "ai.extract_brief",
   AI_SUGGEST_REPLY: "ai.suggest_reply",
+  AI_MERLIN_AUTO_REPLY: "ai.merlin_auto_reply",
   AI_TRANSCRIBE: "ai.transcribe_audio",
   AI_DESCRIBE_IMAGE: "ai.describe_image",
   TEMPLATES_SYNC: "templates.sync",

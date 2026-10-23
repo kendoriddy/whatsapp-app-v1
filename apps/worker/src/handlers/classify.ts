@@ -115,4 +115,12 @@ export async function handleClassify(db: Db, messageId: string): Promise<void> {
     .update(conversation)
     .set({ lastInboundClass: result.output.label })
     .where(eq(conversation.id, msg.conversationId));
+
+  // Fire-and-forget Merlin auto-reply when automation is enabled.
+  try {
+    const { handleMerlinAutoReply } = await import("./merlin-auto-reply.js");
+    await handleMerlinAutoReply(db, messageId);
+  } catch (err) {
+    console.error("[classify] merlin auto-reply failed", err);
+  }
 }

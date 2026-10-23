@@ -12,7 +12,7 @@ const links = [
   { href: "/followups", label: "Follow-ups" },
   { href: "/dashboard", label: "Dashboard" },
   { href: "/ai/review", label: "AI review" },
-  { href: "/settings/whatsapp", label: "Settings" },
+  { href: "/settings", label: "Settings" },
   { href: "/audit", label: "Audit" },
 ];
 
