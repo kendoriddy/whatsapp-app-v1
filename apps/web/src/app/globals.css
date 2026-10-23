@@ -406,6 +406,173 @@ td {
   border-bottom: 1px solid var(--border);
   font-size: 0.9rem;
 }
+.page-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.page-head h1 {
+  margin: 0;
+}
+.table-wrap {
+  overflow-x: auto;
+}
+.data-table {
+  min-width: 960px;
+}
+.row-clickable {
+  cursor: pointer;
+}
+.row-clickable:hover td {
+  background: color-mix(in srgb, var(--panel-2) 70%, transparent);
+}
+.row-clickable.selected td {
+  background: color-mix(in srgb, var(--accent) 18%, var(--panel));
+}
+.clamp-cell {
+  max-width: 160px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tiny {
+  font-size: 0.75rem;
+}
+.table-empty {
+  padding: 1rem 0.5rem;
+  margin: 0;
+}
+.chip {
+  display: inline-block;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  text-transform: capitalize;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+}
+.chip.stage-paid,
+.chip.stage-fulfilled {
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
+  color: color-mix(in srgb, var(--accent) 80%, white);
+}
+.chip.stage-lost {
+  border-color: color-mix(in srgb, var(--danger) 50%, var(--border));
+  color: var(--danger);
+}
+.chip.risk-at_risk,
+.chip.risk-late {
+  border-color: color-mix(in srgb, var(--danger) 50%, var(--border));
+  color: var(--danger);
+}
+.chip.risk-watch {
+  border-color: color-mix(in srgb, var(--accent-2) 50%, var(--border));
+  color: var(--accent-2);
+}
+
+.drawer-root {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  justify-content: flex-end;
+}
+.drawer-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  background: rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+}
+.drawer-panel {
+  position: relative;
+  width: min(420px, 100%);
+  height: 100%;
+  background: var(--panel);
+  border-left: 1px solid var(--border);
+  box-shadow: -12px 0 40px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  animation: drawer-in 180ms ease-out;
+}
+.drawer-panel.wide {
+  width: min(520px, 100%);
+}
+@keyframes drawer-in {
+  from {
+    transform: translateX(18px);
+    opacity: 0.6;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+.drawer-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1rem 1.1rem;
+  border-bottom: 1px solid var(--border);
+}
+.drawer-head h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+.drawer-sub {
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+}
+.drawer-body {
+  padding: 1rem 1.1rem 2rem;
+  overflow: auto;
+  flex: 1;
+}
+.drawer-sections {
+  display: grid;
+  gap: 1.35rem;
+}
+.drawer-sections h3 {
+  margin: 0 0 0.55rem;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  font-weight: 600;
+}
+.detail-grid {
+  display: grid;
+  grid-template-columns: 7.5rem 1fr;
+  gap: 0.35rem 0.75rem;
+  margin: 0 0 0.75rem;
+}
+.detail-grid dt {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.detail-grid dd {
+  margin: 0;
+}
+.drawer-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.65rem;
+}
+.drawer-list li {
+  padding-bottom: 0.55rem;
+  border-bottom: 1px solid var(--border);
+}
+.drawer-list li:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
 @media (max-width: 800px) {
   .app-shell {
     grid-template-columns: 1fr;
