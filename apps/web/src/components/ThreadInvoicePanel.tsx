@@ -94,6 +94,8 @@ export function ThreadInvoicePanel({
       if (chargeKobo > totalKobo) return null;
     }
     return {
+      subtotalKobo: toKobo(goods),
+      deliveryKobo: toKobo(delivery),
       totalKobo,
       chargeKobo,
       remainingKobo: Math.max(0, totalKobo - chargeKobo),
@@ -390,6 +392,10 @@ export function ThreadInvoicePanel({
 
           {preview && (
             <div className="invoice-preview muted">
+              <div>Items: {formatNaira(preview.subtotalKobo)}</div>
+              {preview.deliveryKobo > 0 && (
+                <div>Delivery: {formatNaira(preview.deliveryKobo)}</div>
+              )}
               <div>Invoice total: {formatNaira(preview.totalKobo)}</div>
               <div>Due now (Paystack): {formatNaira(preview.chargeKobo)}</div>
               <div>

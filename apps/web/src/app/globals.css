@@ -181,6 +181,26 @@ select {
   background: #1f4d36;
   margin-left: auto;
 }
+.msg.pending {
+  opacity: 0.55;
+  filter: saturate(0.7);
+  animation: msg-pending-bounce 1.1s ease-in-out infinite;
+}
+@keyframes msg-pending-bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .msg.pending {
+    animation: none;
+    opacity: 0.65;
+  }
+}
 .msg-meta {
   display: flex;
   justify-content: space-between;

@@ -22,17 +22,20 @@ type Msg = {
   waTimestamp: string;
 };
 
+type PendingMsg = Msg & { clientId: string };
+
 export default function ThreadPage() {
   const params = useParams<{ id: string }>();
   const [messages, setMessages] = useState<Msg[]>([]);
+  const [pending, setPending] = useState<PendingMsg[]>([]);
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [sending, setSending] = useState(false);
   const [railOpen, setRailOpen] = useState(false);
   const [showJumpBottom, setShowJumpBottom] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const stickToBottom = useRef(true);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     setRailOpen(localStorage.getItem(RAIL_KEY) === "1");
@@ -72,21 +75,25 @@ export default function ThreadPage() {
   useEffect(() => {
     stickToBottom.current = true;
     setMessages([]);
+    setPending([]);
     setShowJumpBottom(false);
+    setText("");
     void load();
     const t = setInterval(() => void load(), 4000);
     return () => clearInterval(t);
   }, [params.id, load]);
 
-  // Pin to latest on open and while the user stays near the bottom.
+  const threadItems = [...messages, ...pending];
+
+  // Pin to latest on open, new messages, and optimistic sends.
   useEffect(() => {
-    if (messages.length === 0) return;
+    if (threadItems.length === 0) return;
     if (stickToBottom.current) {
       requestAnimationFrame(() => scrollToBottom("auto"));
     } else {
       updateNearBottom();
     }
-  }, [messages, scrollToBottom, updateNearBottom]);
+  }, [threadItems.length, messages, pending, scrollToBottom, updateNearBottom]);
 
   // Spec: viewing a thread resets unread_count (also while new inbound arrives).
   useEffect(() => {
@@ -100,27 +107,76 @@ export default function ThreadPage() {
     return () => clearInterval(t);
   }, [params.id]);
 
+  // Drop optimistic bubbles once the real outbound appears in the thread.
+  useEffect(() => {
+    if (pending.length === 0) return;
+    setPending((prev) =>
+      prev.filter((p) => {
+        const matched = messages.some(
+          (m) =>
+            m.direction === "outbound" &&
+            (m.textBody ?? "") === (p.textBody ?? "") &&
+            Math.abs(
+              new Date(m.waTimestamp).getTime() -
+                new Date(p.waTimestamp).getTime(),
+            ) <
+              5 * 60 * 1000,
+        );
+        return !matched;
+      }),
+    );
+  }, [messages, pending.length]);
+
   async function send() {
-    setSending(true);
+    const body = text.trim();
+    if (!body) return;
+
+    const clientId = `local-${crypto.randomUUID()}`;
+    const optimistic: PendingMsg = {
+      clientId,
+      id: clientId,
+      direction: "outbound",
+      textBody: body,
+      caption: null,
+      type: "text",
+      status: "sending",
+      classification: null,
+      waTimestamp: new Date().toISOString(),
+    };
+
+    // Instant UX: clear composer + show pending bubble.
+    setText("");
     setError(null);
+    setPending((prev) => [...prev, optimistic]);
+    stickToBottom.current = true;
+    requestAnimationFrame(() => scrollToBottom("smooth"));
+    textareaRef.current?.focus();
+
     try {
       await api(`/api/conversations/${params.id}/outbound`, {
         method: "POST",
         body: JSON.stringify({
           kind: "text",
-          body_text: text,
+          body_text: body,
           action: "send",
           idempotency_key: crypto.randomUUID(),
         }),
       });
-      setText("");
-      stickToBottom.current = true;
       await load();
+      stickToBottom.current = true;
       requestAnimationFrame(() => scrollToBottom("smooth"));
     } catch (e) {
+      setPending((prev) => prev.filter((p) => p.clientId !== clientId));
+      setText((current) => (current.trim() ? current : body));
       setError(String((e as Error).message));
-    } finally {
-      setSending(false);
+      textareaRef.current?.focus();
+    }
+  }
+
+  function onComposerKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      void send();
     }
   }
 
@@ -169,19 +225,23 @@ export default function ThreadPage() {
             className="panel thread-scroll"
             onScroll={updateNearBottom}
           >
-            {messages.length === 0 && (
+            {threadItems.length === 0 && (
               <p className="muted">No messages in this thread yet.</p>
             )}
-            {messages.map((m) => {
+            {threadItems.map((m) => {
+              const isPending = m.status === "sending";
               const label = m.direction === "inbound" ? "Customer" : "Staff";
               const meta =
                 m.direction === "outbound"
-                  ? m.status
+                  ? isPending
+                    ? "Sending…"
+                    : m.status
                   : (m.classification ?? m.type);
               return (
                 <div
                   key={m.id}
-                  className={`msg ${m.direction === "inbound" ? "in" : "out"}`}
+                  className={`msg ${m.direction === "inbound" ? "in" : "out"}${isPending ? " pending" : ""}`}
+                  aria-busy={isPending || undefined}
                 >
                   <div className="msg-meta">
                     <span className="msg-label">{label}</span>
@@ -194,7 +254,7 @@ export default function ThreadPage() {
                   </div>
                   <div className="msg-foot muted">
                     {meta}
-                    {m.type !== "text" ? ` · ${m.type}` : ""}
+                    {m.type !== "text" && !isPending ? ` · ${m.type}` : ""}
                   </div>
                 </div>
               );
@@ -227,14 +287,16 @@ export default function ThreadPage() {
         </div>
         <div className="composer">
           <textarea
+            ref={textareaRef}
             className="textarea"
             value={text}
             onChange={(e) => setText(e.target.value)}
+            onKeyDown={onComposerKeyDown}
             placeholder="Reply…"
           />
           <button
             className="btn"
-            disabled={!text || sending}
+            disabled={!text.trim()}
             onClick={() => void send()}
           >
             Send

@@ -412,6 +412,9 @@ export async function POST(
       `Hello${c.profileName ? ` ${c.profileName}` : ""},`,
       ``,
       `Invoice ${quoteRef} v${version} — ${description}`,
+      `Items: ${formatNaira(subtotalKobo)}`,
+      deliveryKobo > 0 ? `Delivery: ${formatNaira(deliveryKobo)}` : null,
+      discountKobo > 0 ? `Discount: -${formatNaira(discountKobo)}` : null,
       `Invoice total: ${formatNaira(totalKobo)}`,
       `${kindLabel} due now: ${formatNaira(chargeKobo)}`,
       remainingAfterThisKobo > 0
