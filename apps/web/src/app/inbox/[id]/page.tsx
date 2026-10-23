@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { api } from "@/lib/api-client";
 import { ConversationList } from "@/components/ConversationList";
 import { ThreadAiPanel } from "@/components/ThreadAiPanel";
+import { ThreadInvoicePanel } from "@/components/ThreadInvoicePanel";
 
 const RAIL_KEY = "mmabon_chat_rail_open";
 
@@ -141,6 +142,10 @@ export default function ThreadPage() {
             Send
           </button>
         </div>
+        <ThreadInvoicePanel
+          conversationId={params.id}
+          onSent={() => void load()}
+        />
         <ThreadAiPanel conversationId={params.id} />
       </div>
     </div>

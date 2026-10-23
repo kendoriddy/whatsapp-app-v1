@@ -1,8 +1,8 @@
 import { ImageResponse } from "next/og";
-import { PRODUCT_NAME } from "@/lib/brand";
 
-export const runtime = "edge";
-export const alt = `${PRODUCT_NAME} — Sell on WhatsApp. Run it like a desk.`;
+/** Node runtime — next/og exceeds Vercel’s 1 MB Edge Function limit. */
+export const runtime = "nodejs";
+export const alt = "Relay — Sell on WhatsApp. Run it like a desk.";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -29,7 +29,7 @@ export default function OpenGraphImage() {
           fontWeight: 700,
         }}
       >
-        {PRODUCT_NAME}
+        Relay
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         <div

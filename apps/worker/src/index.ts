@@ -13,6 +13,7 @@ import { createPgBossQueue, Jobs } from "@mmabon/queue";
 import { processWaEvent } from "./handlers/process-event.js";
 import { handleSendOutbound } from "./handlers/send-outbound.js";
 import { handleClassify } from "./handlers/classify.js";
+import { processPaystackEvent } from "./handlers/process-paystack.js";
 
 const env = loadEnv();
 const log = createLogger("worker", env.LOG_LEVEL);
@@ -41,6 +42,13 @@ async function main() {
     Jobs.AI_CLASSIFY_MESSAGE,
     async (job) => {
       await handleClassify(db, job.data.messageId);
+    },
+  );
+
+  await queue.work<{ webhookEventId: number }>(
+    Jobs.PAYSTACK_PROCESS_EVENT,
+    async (job) => {
+      await processPaystackEvent(db, job.data.webhookEventId);
     },
   );
 
