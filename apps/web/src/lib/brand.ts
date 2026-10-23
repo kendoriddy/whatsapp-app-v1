@@ -8,3 +8,9 @@ export const PRODUCT_TAGLINE =
  * Swap per tenant later; MMABON is the pilot workspace.
  */
 export const WORKSPACE_NAME = "MMABON Desk";
+
+/** Never show fake reviews. Flip when you have real customer quotes. */
+export const SHOW_LANDING_TESTIMONIALS = false;
+
+export const CONTACT_EMAIL_PLACEHOLDER = "[EMAIL]";
+export const CONTACT_WHATSAPP_PLACEHOLDER = "https://wa.me/[NUMBER]";

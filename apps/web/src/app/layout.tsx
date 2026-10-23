@@ -3,7 +3,12 @@ import "./globals.css";
 import { Nav } from "@/components/Nav";
 import { PRODUCT_NAME, PRODUCT_TAGLINE } from "@/lib/brand";
 
+const siteUrl =
+  process.env.APP_BASE_URL?.replace(/\/$/, "") ||
+  "https://whatsapp-app-v1.vercel.app";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: {
     default: `${PRODUCT_NAME} — WhatsApp order desk`,
     template: `%s · ${PRODUCT_NAME}`,

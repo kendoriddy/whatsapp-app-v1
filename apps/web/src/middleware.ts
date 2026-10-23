@@ -3,12 +3,16 @@ import { updateSession } from "@/lib/supabase/middleware";
 
 const PUBLIC_PREFIXES = [
   "/login",
+  "/signup",
   "/privacy",
   "/terms",
   "/pay/thanks",
+  "/opengraph-image",
+  "/twitter-image",
   "/api/webhooks/",
   "/api/health",
   "/api/auth/",
+  "/api/signup",
 ];
 
 function isPublic(pathname: string) {

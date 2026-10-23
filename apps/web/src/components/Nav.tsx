@@ -25,6 +25,7 @@ export function Nav() {
   if (
     path === "/" ||
     path.startsWith("/login") ||
+    path.startsWith("/signup") ||
     path.startsWith("/privacy") ||
     path.startsWith("/terms")
   ) {
