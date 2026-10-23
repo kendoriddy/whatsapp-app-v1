@@ -51,6 +51,18 @@ export default function ThreadPage() {
     return () => clearInterval(t);
   }, [params.id]);
 
+  // Spec: viewing a thread resets unread_count (also while new inbound arrives).
+  useEffect(() => {
+    const markRead = () =>
+      void api(`/api/conversations/${params.id}/read`, {
+        method: "POST",
+        body: "{}",
+      }).catch(() => undefined);
+    markRead();
+    const t = setInterval(markRead, 10000);
+    return () => clearInterval(t);
+  }, [params.id]);
+
   async function send() {
     setSending(true);
     setError(null);

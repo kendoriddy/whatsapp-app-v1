@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api-client";
 
@@ -31,22 +31,24 @@ export function ConversationList({
   const [error, setError] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
+  const load = useCallback(() => {
     api<{ items: Conv[] }>("/api/conversations")
-      .then((r) => {
-        if (!cancelled) setItems(r.items);
-      })
-      .catch((e) => {
-        if (!cancelled) setError(String(e.message));
-      })
-      .finally(() => {
-        if (!cancelled) setLoaded(true);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+      .then((r) =>
+        setItems(
+          r.items.map((c) =>
+            activeId && c.id === activeId ? { ...c, unreadCount: 0 } : c,
+          ),
+        ),
+      )
+      .catch((e) => setError(String(e.message)))
+      .finally(() => setLoaded(true));
+  }, [activeId]);
+
+  useEffect(() => {
+    void load();
+    const t = setInterval(() => void load(), 8000);
+    return () => clearInterval(t);
+  }, [load]);
 
   return (
     <div
