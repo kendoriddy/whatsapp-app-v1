@@ -41,6 +41,7 @@ export function ThreadAiPanel({ conversationId }: { conversationId: string }) {
     py: number;
   } | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const fetchGen = useRef(0);
 
   useEffect(() => {
     try {
@@ -54,24 +55,38 @@ export function ThreadAiPanel({ conversationId }: { conversationId: string }) {
     }
   }, []);
 
+  const refresh = useCallback(async () => {
+    const gen = ++fetchGen.current;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await api<SummaryResponse>(
+        `/api/conversations/${conversationId}/ai/summary`,
+        {
+          method: "POST",
+          body: "{}",
+        },
+      );
+      if (gen !== fetchGen.current) return;
+      setData(res);
+    } catch (err) {
+      if (gen !== fetchGen.current) return;
+      setError(String((err as Error).message));
+      setData(null);
+    } finally {
+      if (gen === fetchGen.current) setLoading(false);
+    }
+  }, [conversationId]);
+
+  // Prefetch as soon as the thread opens — don't wait for the FAB click.
   useEffect(() => {
     setData(null);
     setError(null);
-  }, [conversationId]);
-
-  const persistPos = useCallback((p: Pos) => {
-    setPos(p);
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(p));
-    } catch {
-      /* ignore */
-    }
-  }, []);
+    void refresh();
+  }, [conversationId, refresh]);
 
   const onPointerDown = (e: React.PointerEvent) => {
     if ((e.target as HTMLElement).closest("button, a, input, textarea")) return;
-    const el = panelRef.current;
-    if (!el) return;
     e.currentTarget.setPointerCapture(e.pointerId);
     drag.current = { ox: e.clientX, oy: e.clientY, px: pos.x, py: pos.y };
   };
@@ -80,12 +95,10 @@ export function ThreadAiPanel({ conversationId }: { conversationId: string }) {
     if (!drag.current) return;
     const dx = e.clientX - drag.current.ox;
     const dy = e.clientY - drag.current.oy;
-    // position is bottom/right offsets
-    const next = {
+    setPos({
       x: clamp(drag.current.px - dx, 8, window.innerWidth - 80),
       y: clamp(drag.current.py - dy, 8, window.innerHeight - 80),
-    };
-    setPos(next);
+    });
   };
 
   const onPointerUp = (e: React.PointerEvent) => {
@@ -106,53 +119,32 @@ export function ThreadAiPanel({ conversationId }: { conversationId: string }) {
     });
   };
 
-  async function refresh() {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await api<SummaryResponse>(
-        `/api/conversations/${conversationId}/ai/summary`,
-        {
-          method: "POST",
-          body: "{}",
-        },
-      );
-      setData(res);
-      setOpen(true);
-    } catch (err) {
-      setError(String((err as Error).message));
-      setOpen(true);
-    } finally {
-      setLoading(false);
-    }
-  }
-
   return (
     <div
       ref={panelRef}
       className={`ai-panel ${open ? "open" : "collapsed"}`}
       style={{ right: pos.x, bottom: pos.y }}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
     >
       {!open ? (
         <button
           type="button"
           className="ai-panel-fab"
-          onClick={() => {
-            setOpen(true);
-            if (!data && !loading) void refresh();
-          }}
-          title="AI thread brief"
+          onClick={() => setOpen(true)}
+          title="Merlin"
+          aria-label="Merlin"
         >
-          AI
+          M
         </button>
       ) : (
         <div className="ai-panel-card">
-          <header className="ai-panel-head">
+          <header
+            className="ai-panel-head"
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerUp}
+          >
             <div>
-              <strong>AI brief</strong>
+              <strong>Merlin</strong>
               <span className="muted ai-panel-drag-hint"> · drag to move</span>
             </div>
             <div className="ai-panel-actions">
@@ -168,61 +160,60 @@ export function ThreadAiPanel({ conversationId }: { conversationId: string }) {
                 type="button"
                 className="btn secondary"
                 onClick={() => setOpen(false)}
-                aria-label="Collapse"
+                aria-label="Collapse Merlin"
               >
                 −
               </button>
             </div>
           </header>
 
-          {error && <p className="ai-panel-error">{error}</p>}
+          <div className="ai-panel-scroll">
+            {loading && !data && !error && (
+              <p className="muted">Merlin is reading this thread…</p>
+            )}
 
-          {data ? (
-            <div className="ai-panel-body">
-              <p className={`ai-urgency ${data.summary.urgency}`}>
-                {data.summary.urgency} urgency
-              </p>
-              <h3>{data.summary.headline}</h3>
-              <p className="muted">{data.summary.intent}</p>
+            {error && <p className="ai-panel-error">{error}</p>}
 
-              {data.summary.keyFacts.length > 0 && (
-                <>
-                  <h4>Key facts</h4>
-                  <ul>
-                    {data.summary.keyFacts.map((f) => (
-                      <li key={f}>{f}</li>
-                    ))}
-                  </ul>
-                </>
-              )}
+            {data ? (
+              <div className="ai-panel-body">
+                <p className={`ai-urgency ${data.summary.urgency}`}>
+                  {data.summary.urgency} urgency
+                </p>
+                <h3>{data.summary.headline}</h3>
+                <p className="muted">{data.summary.intent}</p>
 
-              {data.summary.openQuestions.length > 0 && (
-                <>
-                  <h4>Still unclear</h4>
-                  <ul>
-                    {data.summary.openQuestions.map((q) => (
-                      <li key={q}>{q}</li>
-                    ))}
-                  </ul>
-                </>
-              )}
+                {data.summary.keyFacts.length > 0 && (
+                  <>
+                    <h4>Key facts</h4>
+                    <ul>
+                      {data.summary.keyFacts.map((f) => (
+                        <li key={f}>{f}</li>
+                      ))}
+                    </ul>
+                  </>
+                )}
 
-              <h4>Suggested next step</h4>
-              <p>{data.summary.nextAction}</p>
+                {data.summary.openQuestions.length > 0 && (
+                  <>
+                    <h4>Still unclear</h4>
+                    <ul>
+                      {data.summary.openQuestions.map((q) => (
+                        <li key={q}>{q}</li>
+                      ))}
+                    </ul>
+                  </>
+                )}
 
-              <p className="muted ai-panel-meta">
-                {data.provider}/{data.model} · {data.messageCount} msgs ·{" "}
-                {data.latencyMs}ms
-              </p>
-            </div>
-          ) : (
-            !loading &&
-            !error && (
-              <p className="muted">
-                Click Refresh for a grounded summary of this thread.
-              </p>
-            )
-          )}
+                <h4>Suggested next step</h4>
+                <p>{data.summary.nextAction}</p>
+
+                <p className="muted ai-panel-meta">
+                  {data.provider}/{data.model} · {data.messageCount} msgs ·{" "}
+                  {data.latencyMs}ms
+                </p>
+              </div>
+            ) : null}
+          </div>
         </div>
       )}
     </div>

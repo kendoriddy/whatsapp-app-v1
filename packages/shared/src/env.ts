@@ -26,10 +26,10 @@ const envSchema = z.object({
     .string()
     .optional()
     .transform((v) => v === "true"),
-  // Default primary = openai. Set AI_PRIMARY_PROVIDER=cencori when Cencori has credit.
+  // Default Cencori (OpenAI often blocked on org networks). Failover → Gemini → OpenAI.
   AI_PRIMARY_PROVIDER: z
     .enum(["openai", "cencori", "gemini"])
-    .default("openai"),
+    .default("cencori"),
   CENCORI_API_KEY: z
     .string()
     .optional()
@@ -51,10 +51,10 @@ const envSchema = z.object({
     .optional()
     .or(z.literal(""))
     .transform((v) => v || undefined),
-  AI_CLASSIFIER_MODEL: z.string().min(1).default("gpt-4o-mini"),
-  AI_SUMMARY_MODEL: z.string().min(1).default("gpt-4o-mini"),
+  AI_CLASSIFIER_MODEL: z.string().min(1).default("auto"),
+  AI_SUMMARY_MODEL: z.string().min(1).default("auto"),
   AI_OPENAI_FALLBACK_MODEL: z.string().min(1).default("gpt-4o-mini"),
-  AI_GEMINI_FALLBACK_MODEL: z.string().min(1).default("gemini-2.0-flash"),
+  AI_GEMINI_FALLBACK_MODEL: z.string().min(1).default("gemini-2.5-flash"),
   AI_EXTRACTOR_MODEL: z.string().optional(),
   AI_SUGGEST_MODEL: z.string().optional(),
   AI_TRANSCRIBE_MODEL: z.string().optional(),

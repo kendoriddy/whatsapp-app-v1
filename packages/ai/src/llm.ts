@@ -59,7 +59,7 @@ function providerLabel(baseURL?: string): string {
   return "openai-compatible";
 }
 
-/** Credit / routing failures where a direct OpenAI or Gemini call should be tried next. */
+/** Credit / routing / connectivity failures — try the next provider. */
 export function isLlmFailoverError(err: unknown): boolean {
   const status =
     err instanceof APIError
@@ -74,8 +74,28 @@ export function isLlmFailoverError(err: unknown): boolean {
         ? (err as { message: unknown }).message
         : err,
   ).toLowerCase();
+  const causeCode =
+    err instanceof Error &&
+    err.cause &&
+    typeof err.cause === "object" &&
+    "code" in err.cause
+      ? String((err.cause as { code: unknown }).code).toLowerCase()
+      : "";
 
-  if (status === 402 || status === 429) return true;
+  // Org / firewall blocks (e.g. api.openai.com) surface as Connection error / ENOTCONN.
+  if (
+    /connection error|fetch failed|network|econnreset|econnrefused|enotconn|etimedout|socket|tls|getaddrinfo/.test(
+      msg,
+    ) ||
+    /econnreset|econnrefused|enotconn|etimedout|enotfound|eai_again/.test(
+      causeCode,
+    )
+  ) {
+    return true;
+  }
+
+  if (status === 402 || status === 429 || status === 503 || status === 529)
+    return true;
   if (status === 401 || status === 403) {
     return /credit|quota|billing|balance|payment|byok|insufficient|plan/.test(
       msg,
@@ -162,13 +182,12 @@ export function createGatewayLlmClient(cfg: GatewayLlmConfig): LlmClient {
     });
   }
 
-  const primary = cfg.primary ?? "openai";
-  const order: LlmPrimaryProvider[] = [
-    primary,
-    ...(["openai", "cencori", "gemini"] as LlmPrimaryProvider[]).filter(
-      (p) => p !== primary,
-    ),
-  ];
+  const primary = cfg.primary ?? "cencori";
+  // Prefer Gemini over OpenAI in the failover list (OpenAI is often blocked by org networks).
+  const rest: LlmPrimaryProvider[] = (
+    ["gemini", "openai", "cencori"] as LlmPrimaryProvider[]
+  ).filter((p) => p !== primary);
+  const order: LlmPrimaryProvider[] = [primary, ...rest];
 
   const chain = order
     .map((name) => byName.get(name))
