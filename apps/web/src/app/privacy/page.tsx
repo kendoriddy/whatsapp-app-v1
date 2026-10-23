@@ -1,25 +1,38 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { PRODUCT_NAME } from "@/lib/brand";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy · MMABON Order Desk",
-  description: "Privacy notice for the MMABON WhatsApp Order Desk",
+  title: "Privacy Policy",
+  description: `Privacy notice for ${PRODUCT_NAME}`,
 };
 
 export default function PrivacyPage() {
   return (
-    <article className="panel" style={{ maxWidth: "42rem", lineHeight: 1.55 }}>
+    <article
+      className="panel"
+      style={{ maxWidth: "42rem", lineHeight: 1.55, margin: "1.5rem auto" }}
+    >
+      <p>
+        <Link href="/" className="muted">
+          ← {PRODUCT_NAME}
+        </Link>
+      </p>
       <h1>Privacy Policy</h1>
-      <p className="muted">Last updated: 22 October 2026 · Pilot / staging</p>
+      <p className="muted">Last updated: 23 October 2026 · Pilot / staging</p>
 
       <p>
-        This notice covers the <strong>MMABON Order Desk</strong> (the
-        “Service”), a staff tool that receives and sends WhatsApp Business
-        messages for MMABON Custom &amp; Retail via Meta’s WhatsApp Cloud API.
+        This notice covers <strong>{PRODUCT_NAME}</strong> (the “Service”), a
+        staff WhatsApp order desk that receives and sends Business messages via
+        Meta’s WhatsApp Cloud API for the business that operates this
+        deployment.
       </p>
 
       <h2>Who we are</h2>
       <p>
-        <strong>Data controller:</strong> MMABON Custom &amp; Retail (Nigeria).
+        <strong>Data controller:</strong> the business that connects its
+        WhatsApp Business Account to this {PRODUCT_NAME} deployment (pilot:
+        MMABON Custom &amp; Retail, Nigeria).
         <br />
         <strong>Contact:</strong>{" "}
         <a href="mailto:privacy@mmabon.ng">privacy@mmabon.ng</a> (or the
@@ -39,47 +52,35 @@ export default function PrivacyPage() {
         <li>Delivery statuses, templates, and related Meta webhook metadata</li>
         <li>Staff accounts (name, email, role) for the dashboard</li>
         <li>
-          Order and payment records created by staff (including Paystack
-          references when enabled)
+          Order, quote, and payment metadata when those modules are enabled
         </li>
       </ul>
 
       <h2>Why we process it</h2>
       <p>
-        To operate a shared WhatsApp inbox, fulfil custom-apparel orders, send
-        staff-approved replies and payment links, and improve classification of
-        enquiries. Processing is based on legitimate interests in serving
-        customers who message the business, and contract performance where an
-        order exists.
+        To operate customer support and sales over WhatsApp: show conversations
+        to authorised staff, send replies, fulfil orders, and process payments.
+        Legal bases include performance of a contract with the customer and
+        legitimate interests of the business in running its WhatsApp channel.
       </p>
 
-      <h2>Where data is stored</h2>
+      <h2>Sharing</h2>
       <p>
-        Application data is stored in our hosting and database providers (for
-        example Vercel and Supabase). During the pilot, infrastructure may be
-        outside Nigeria; we will disclose cross-border transfers as required
-        under the Nigeria Data Protection Act 2023 (NDPA).
+        We use Meta (WhatsApp Cloud API), hosting/database providers (e.g.
+        Vercel, Supabase), and optionally payment (Paystack) and AI providers
+        under their terms. We do not sell personal data.
       </p>
 
       <h2>Retention</h2>
       <p>
-        Messages and orders are kept for the pilot unless MMABON sets a shorter
-        retention period. Webhook forensics and some AI run inputs are purged on
-        shorter schedules described in our internal operations runbook.
+        Messages and orders are kept for the pilot unless the operating business
+        sets a shorter retention period.
       </p>
 
       <h2>Your rights</h2>
       <p>
-        Customers and staff may request access, correction, or deletion of
-        personal data by contacting the controller. Staff admins can export or
-        anonymise a contact’s data from the Service when that feature is
-        enabled.
-      </p>
-
-      <h2>Meta / WhatsApp</h2>
-      <p>
-        Messaging also follows Meta’s WhatsApp Business terms and Meta’s privacy
-        policy. We do not sell personal data.
+        Depending on applicable law (including Nigeria’s NDPA), you may request
+        access, correction, or deletion. Contact the controller above.
       </p>
     </article>
   );

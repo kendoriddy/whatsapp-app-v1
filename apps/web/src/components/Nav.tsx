@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
+import { WORKSPACE_NAME } from "@/lib/brand";
 
 const links = [
   { href: "/inbox", label: "Inbox" },
@@ -20,7 +21,9 @@ export function Nav() {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
 
+  // Public marketing / legal / auth — no desk chrome
   if (
+    path === "/" ||
     path.startsWith("/login") ||
     path.startsWith("/privacy") ||
     path.startsWith("/terms")
@@ -41,7 +44,9 @@ export function Nav() {
 
   return (
     <nav className="nav">
-      <div className="brand">MMABON Desk</div>
+      <div className="brand">
+        <span className="brand-workspace">{WORKSPACE_NAME}</span>
+      </div>
       {links.map((l) => (
         <Link
           key={l.href}

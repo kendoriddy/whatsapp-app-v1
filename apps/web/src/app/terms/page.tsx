@@ -1,26 +1,37 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { PRODUCT_NAME } from "@/lib/brand";
 
 export const metadata: Metadata = {
-  title: "Terms of Service · MMABON Order Desk",
-  description: "Terms of use for the MMABON WhatsApp Order Desk",
+  title: "Terms of Service",
+  description: `Terms of use for ${PRODUCT_NAME}`,
 };
 
 export default function TermsPage() {
   return (
-    <article className="panel" style={{ maxWidth: "42rem", lineHeight: 1.55 }}>
+    <article
+      className="panel"
+      style={{ maxWidth: "42rem", lineHeight: 1.55, margin: "1.5rem auto" }}
+    >
+      <p>
+        <Link href="/" className="muted">
+          ← {PRODUCT_NAME}
+        </Link>
+      </p>
       <h1>Terms of Service</h1>
-      <p className="muted">Last updated: 22 October 2026 · Pilot / staging</p>
+      <p className="muted">Last updated: 23 October 2026 · Pilot / staging</p>
 
       <p>
-        These terms cover use of the <strong>MMABON Order Desk</strong> Meta
-        application and related WhatsApp Cloud API integration operated for
-        MMABON Custom &amp; Retail.
+        These terms cover use of <strong>{PRODUCT_NAME}</strong>, a Meta
+        application and WhatsApp Cloud API integration that powers a staff order
+        desk for the business operating this deployment (pilot workspace: MMABON
+        Custom &amp; Retail).
       </p>
 
       <h2>Service</h2>
       <p>
         The Service provides a staff dashboard to receive WhatsApp messages sent
-        to MMABON’s registered Cloud API number(s), store them, and send
+        to the business’s registered Cloud API number(s), store them, and send
         staff-approved replies and templates. It is not a consumer-facing
         chatbot and does not replace WhatsApp’s own consumer terms.
       </p>
@@ -28,12 +39,12 @@ export default function TermsPage() {
       <h2>Acceptable use</h2>
       <ul>
         <li>
-          Only authorised MMABON staff and contracted developers may use the
-          dashboard
+          Only authorised staff of the operating business and contracted
+          developers may use the dashboard
         </li>
         <li>
           Outbound customer messages must follow WhatsApp Business policies and
-          MMABON’s approval rules
+          the business’s approval rules
         </li>
         <li>
           Do not attempt to bypass authentication, scrape, or abuse Meta’s APIs

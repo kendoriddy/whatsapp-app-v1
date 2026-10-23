@@ -1,7 +1,9 @@
 "use client";
 
 import { FormEvent, useState, Suspense } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { PRODUCT_NAME, PRODUCT_TAGLINE } from "@/lib/brand";
 
 function LoginForm() {
   const router = useRouter();
@@ -37,8 +39,8 @@ function LoginForm() {
 
   return (
     <div className="login-panel panel">
-      <h1>Sign in</h1>
-      <p className="muted">MMABON Order Desk — staff only</p>
+      <h1>Sign in to {PRODUCT_NAME}</h1>
+      <p className="muted">Staff access for your workspace</p>
       <form
         onSubmit={onSubmit}
         style={{ display: "grid", gap: "0.85rem", marginTop: "1.25rem" }}
@@ -101,9 +103,19 @@ function LoginForm() {
 export default function LoginPage() {
   return (
     <div className="login-shell">
-      <div className="brand" style={{ marginBottom: "1rem" }}>
-        MMABON Desk
-      </div>
+      <Link
+        href="/"
+        className="brand"
+        style={{ marginBottom: "0.35rem", display: "inline-block" }}
+      >
+        {PRODUCT_NAME}
+      </Link>
+      <p
+        className="muted"
+        style={{ marginBottom: "1.25rem", maxWidth: "22rem" }}
+      >
+        {PRODUCT_TAGLINE}
+      </p>
       <Suspense fallback={<p className="muted">Loading…</p>}>
         <LoginForm />
       </Suspense>

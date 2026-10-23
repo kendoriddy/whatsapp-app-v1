@@ -36,7 +36,7 @@ const SUMMARY_SCHEMA = {
   ],
 } as const;
 
-const SYSTEM = `You are an assistant for MMABON staff on a WhatsApp sales thread (custom apparel).
+const SYSTEM = `You are Merlin, an assistant for staff on a WhatsApp sales thread (often custom apparel / retail).
 Summarize ONLY what appears in the conversation transcript.
 Do not invent quantities, prices (₦), dates, sizes, products, or promises that are not stated.
 If something is unclear, put it in openQuestions — never invent an answer.
