@@ -213,23 +213,38 @@ export function ThreadInvoicePanel({
         {open ? "Hide invoice" : "Create invoice"}
       </button>
 
-      {latestPay && !open && (
-        <span className="muted invoice-status">
-          {items[0]?.order.ref}: {latestPay.status}
-          {latestPay.status === "paid" ? " ✓" : ""}
-          {latestQuote && latestPay.status === "paid"
-            ? ` · remaining ${formatNaira(
-                Math.max(
-                  0,
-                  latestQuote.totalKobo -
-                    items[0]!.payments
-                      .filter((p) => p.status === "paid")
-                      .reduce((s, p) => s + p.amountKobo, 0),
-                ),
-              )}`
-            : ""}
-        </span>
-      )}
+      {latestPay &&
+        !open &&
+        (() => {
+          const paidTotal = items[0]!.payments
+            .filter((p) => p.status === "paid")
+            .reduce((s, p) => s + p.amountKobo, 0);
+          const remaining =
+            latestQuote != null
+              ? Math.max(0, latestQuote.totalKobo - paidTotal)
+              : null;
+          const parts = [items[0]?.order.ref];
+          if (latestPay.status === "paid") {
+            parts.push(`paid ${formatNaira(latestPay.amountKobo)} ✓`);
+            if (paidTotal > latestPay.amountKobo) {
+              parts.push(`total paid ${formatNaira(paidTotal)}`);
+            }
+            if (remaining != null) {
+              parts.push(
+                remaining > 0
+                  ? `remaining ${formatNaira(remaining)}`
+                  : "fully paid",
+              );
+            }
+          } else {
+            parts.push(
+              `${latestPay.kind} ${formatNaira(latestPay.amountKobo)} · ${latestPay.status}`,
+            );
+          }
+          return (
+            <span className="muted invoice-status">{parts.join(" · ")}</span>
+          );
+        })()}
 
       {open && (
         <div className="invoice-form panel">
