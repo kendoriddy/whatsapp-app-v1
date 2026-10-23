@@ -1,8 +1,8 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import {
-  CONTACT_EMAIL_PLACEHOLDER,
-  CONTACT_WHATSAPP_PLACEHOLDER,
+  CONTACT_EMAIL,
+  CONTACT_WHATSAPP_URL,
   PRODUCT_NAME,
   PRODUCT_TAGLINE,
 } from "@/lib/brand";
@@ -88,21 +88,33 @@ const features = [
 const plans = [
   {
     name: "Starter",
-    price: "₦[PRICE]/month",
+    price: "₦15,000/month",
     popular: false,
-    limits: ["[LIMIT]", "[LIMIT]", "[LIMIT]"],
+    limits: [
+      "1 WhatsApp Business number",
+      "Up to 2 staff seats",
+      "Shared inbox + basic order cards",
+    ],
   },
   {
     name: "Team",
-    price: "₦[PRICE]/month",
+    price: "₦35,000/month",
     popular: true,
-    limits: ["[LIMIT]", "[LIMIT]", "[LIMIT]"],
+    limits: [
+      "1 WhatsApp Business number",
+      "Up to 8 staff seats",
+      "Orders, Paystack links & Merlin summaries",
+    ],
   },
   {
     name: "Business",
     price: "Contact us",
     popular: false,
-    limits: ["[LIMIT]", "[LIMIT]", "[LIMIT]"],
+    limits: [
+      "Multiple WhatsApp numbers",
+      "Unlimited staff seats",
+      "Priority onboarding & custom limits",
+    ],
   },
 ] as const;
 
@@ -255,8 +267,8 @@ export default function LandingPage() {
         <div className="landing-grid">
           <h2 className="landing-h2">Pricing</h2>
           <p className="landing-lead">
-            Simple plans for Nigerian selling teams. Start free — fill in the
-            numbers when you&apos;re ready.
+            Simple plans for Nigerian selling teams. Start free, upgrade when
+            your desk is busy.
           </p>
           <div className="landing-pricing-grid">
             {plans.map((plan) => (
@@ -335,10 +347,8 @@ export default function LandingPage() {
             <Link href="/privacy">Privacy</Link>
             <Link href="/terms">Terms</Link>
             <Link href="/login">Sign in</Link>
-            <a href={`mailto:${CONTACT_EMAIL_PLACEHOLDER}`}>
-              {CONTACT_EMAIL_PLACEHOLDER}
-            </a>
-            <a href={CONTACT_WHATSAPP_PLACEHOLDER}>WhatsApp</a>
+            <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>
+            <a href={CONTACT_WHATSAPP_URL}>WhatsApp</a>
           </nav>
           <p className="landing-disclaimer">
             Relay is not affiliated with WhatsApp or Meta.

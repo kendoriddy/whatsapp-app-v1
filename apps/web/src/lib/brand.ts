@@ -12,5 +12,5 @@ export const WORKSPACE_NAME = "MMABON Desk";
 /** Never show fake reviews. Flip when you have real customer quotes. */
 export const SHOW_LANDING_TESTIMONIALS = false;
 
-export const CONTACT_EMAIL_PLACEHOLDER = "[EMAIL]";
-export const CONTACT_WHATSAPP_PLACEHOLDER = "https://wa.me/[NUMBER]";
+export const CONTACT_EMAIL = "hello@getrelay.app";
+export const CONTACT_WHATSAPP_URL = "https://wa.me/2348167012575";
