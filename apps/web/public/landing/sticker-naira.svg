@@ -1,5 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 80 80">
   <circle cx="40" cy="40" r="34" fill="#FFD56A" stroke="#111B21" stroke-width="2"/>
   <circle cx="40" cy="40" r="26" fill="none" stroke="#E8B830" stroke-width="2"/>
-  <text x="40" y="48" text-anchor="middle" font-family="system-ui,sans-serif" font-size="28" font-weight="700" fill="#111B21">¦</text>
+  <!-- Naira mark drawn as shapes (no unicode/font) -->
+  <path
+    fill="#111B21"
+    d="M29 22h5.5v13.2L46.2 22H52v36h-5.5V44.2L34.5 58H29V22z"
+  />
+  <rect x="26" y="34" width="28" height="3.5" rx="1" fill="#111B21"/>
+  <rect x="26" y="42.5" width="28" height="3.5" rx="1" fill="#111B21"/>
 </svg>

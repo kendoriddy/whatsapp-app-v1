@@ -30,8 +30,9 @@ function extOf(filename: string): string {
 async function extractDocx(buf: Buffer): Promise<string> {
   try {
     const mammoth = await import("mammoth");
-    const result = await mammoth.convertToMarkdown({ buffer: buf });
-    return (result.value || "").trim();
+    // mammoth has convertToHtml / extractRawText — not convertToMarkdown
+    const result = await mammoth.convertToHtml({ buffer: buf });
+    return htmlToMarkdown(result.value || "");
   } catch (e) {
     throw new Error(
       `DOCX extract failed (${String((e as Error).message)}). Install mammoth or upload .md/.txt.`,
@@ -72,7 +73,9 @@ export type ExtractResult = {
 };
 
 export async function extractToMarkdown(
-  file: File | { name: string; type: string; arrayBuffer: () => Promise<ArrayBuffer> },
+  file:
+    | File
+    | { name: string; type: string; arrayBuffer: () => Promise<ArrayBuffer> },
 ): Promise<ExtractResult> {
   const filename = file.name || "document";
   const mime = file.type || "application/octet-stream";
@@ -97,7 +100,8 @@ export async function extractToMarkdown(
     mime.startsWith("text/")
   ) {
     const raw = buf.toString("utf8").trim();
-    markdown = ext === "csv" || ext === "tsv" ? "```csv\n" + raw + "\n```" : raw;
+    markdown =
+      ext === "csv" || ext === "tsv" ? "```csv\n" + raw + "\n```" : raw;
   } else if (ext === "json" || mime === "application/json") {
     try {
       const parsed = JSON.parse(buf.toString("utf8"));
