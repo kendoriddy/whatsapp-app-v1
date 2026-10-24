@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { MarketingShell } from "@/components/landing/MarketingShell";
 
 type Receipt = {
   reference: string;
@@ -68,14 +69,28 @@ function PayThanksInner() {
   }, [reference]);
 
   return (
-    <div className="panel" style={{ maxWidth: 480, margin: "2rem auto" }}>
+    <div className="mkt-auth-card">
       <h1>Payment {receipt?.status === "paid" ? "received" : "processing"}</h1>
-      {!reference && <p>Thank you. MMABON will confirm on WhatsApp shortly.</p>}
-      {loading && <p className="muted">Loading receipt…</p>}
-      {error && <p style={{ color: "var(--danger)" }}>{error}</p>}
+      {!reference && (
+        <p className="mkt-auth-lead" style={{ marginTop: "0.75rem" }}>
+          Thank you. Your seller will confirm on WhatsApp shortly.
+        </p>
+      )}
+      {loading && (
+        <p className="mkt-auth-lead" style={{ marginTop: "0.75rem" }}>
+          Loading receipt…
+        </p>
+      )}
+      {error && (
+        <p className="mkt-error" style={{ marginTop: "0.75rem" }}>
+          {error}
+        </p>
+      )}
       {receipt && (
-        <div className="pay-receipt">
-          {receipt.description && <p>{receipt.description}</p>}
+        <div className="mkt-pay-receipt">
+          {receipt.description && (
+            <p className="mkt-auth-lead">{receipt.description}</p>
+          )}
           <dl>
             {receipt.order_ref && (
               <>
@@ -112,7 +127,7 @@ function PayThanksInner() {
             <dt>Status</dt>
             <dd>{receipt.status}</dd>
           </dl>
-          <p className="muted">
+          <p className="mkt-auth-lead">
             A confirmation is also sent on WhatsApp when the payment is
             verified.
           </p>
@@ -124,15 +139,19 @@ function PayThanksInner() {
 
 export default function PayThanksPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="panel">
-          <h1>Payment received</h1>
-          <p className="muted">Loading…</p>
-        </div>
-      }
-    >
-      <PayThanksInner />
-    </Suspense>
+    <MarketingShell variant="compact" mainClassName="mkt-page--pay">
+      <Suspense
+        fallback={
+          <div className="mkt-auth-card">
+            <h1>Payment received</h1>
+            <p className="mkt-auth-lead" style={{ marginTop: "0.75rem" }}>
+              Loading…
+            </p>
+          </div>
+        }
+      >
+        <PayThanksInner />
+      </Suspense>
+    </MarketingShell>
   );
 }

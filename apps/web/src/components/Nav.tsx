@@ -27,7 +27,8 @@ export function Nav() {
     path.startsWith("/login") ||
     path.startsWith("/signup") ||
     path.startsWith("/privacy") ||
-    path.startsWith("/terms")
+    path.startsWith("/terms") ||
+    path.startsWith("/pay")
   ) {
     return null;
   }

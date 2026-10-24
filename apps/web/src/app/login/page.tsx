@@ -3,7 +3,8 @@
 import { FormEvent, useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { PRODUCT_NAME, PRODUCT_TAGLINE } from "@/lib/brand";
+import { PRODUCT_NAME } from "@/lib/brand";
+import { MarketingShell } from "@/components/landing/MarketingShell";
 
 function LoginForm() {
   const router = useRouter();
@@ -38,87 +39,55 @@ function LoginForm() {
   }
 
   return (
-    <div className="login-panel panel">
+    <div className="mkt-auth-card">
       <h1>Sign in to {PRODUCT_NAME}</h1>
-      <p className="muted">Staff access for your workspace</p>
-      <form
-        onSubmit={onSubmit}
-        style={{ display: "grid", gap: "0.85rem", marginTop: "1.25rem" }}
-      >
-        <label style={{ display: "grid", gap: "0.35rem" }}>
-          <span className="muted">Email</span>
+      <p className="mkt-auth-lead">Staff access for your workspace</p>
+      <form onSubmit={onSubmit} className="mkt-form">
+        <label className="mkt-field">
+          <span>Email</span>
           <input
+            className="mkt-input"
             type="email"
             autoComplete="username"
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            style={{
-              padding: "0.65rem 0.75rem",
-              borderRadius: 8,
-              border: "1px solid var(--border)",
-              background: "var(--panel-2)",
-            }}
           />
         </label>
-        <label style={{ display: "grid", gap: "0.35rem" }}>
-          <span className="muted">Password</span>
+        <label className="mkt-field">
+          <span>Password</span>
           <input
+            className="mkt-input"
             type="password"
             autoComplete="current-password"
             required
             minLength={8}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            style={{
-              padding: "0.65rem 0.75rem",
-              borderRadius: 8,
-              border: "1px solid var(--border)",
-              background: "var(--panel-2)",
-            }}
           />
         </label>
-        {error && <p style={{ color: "var(--danger)", margin: 0 }}>{error}</p>}
+        {error && <p className="mkt-error">{error}</p>}
         <button
           type="submit"
           disabled={busy}
-          style={{
-            marginTop: "0.25rem",
-            padding: "0.7rem 1rem",
-            borderRadius: 8,
-            border: "none",
-            background: "var(--accent)",
-            color: "#04140c",
-            fontWeight: 600,
-            cursor: busy ? "wait" : "pointer",
-          }}
+          className="landing-btn landing-btn-primary"
         >
           {busy ? "Signing in…" : "Sign in"}
         </button>
       </form>
+      <p className="mkt-auth-foot">
+        New to Relay? <Link href="/signup">Get started</Link>
+      </p>
     </div>
   );
 }
 
 export default function LoginPage() {
   return (
-    <div className="login-shell">
-      <Link
-        href="/"
-        className="brand"
-        style={{ marginBottom: "0.35rem", display: "inline-block" }}
-      >
-        {PRODUCT_NAME}
-      </Link>
-      <p
-        className="muted"
-        style={{ marginBottom: "1.25rem", maxWidth: "22rem" }}
-      >
-        {PRODUCT_TAGLINE}
-      </p>
-      <Suspense fallback={<p className="muted">Loading…</p>}>
+    <MarketingShell variant="compact" mainClassName="mkt-page--auth">
+      <Suspense fallback={<p className="mkt-auth-lead">Loading…</p>}>
         <LoginForm />
       </Suspense>
-    </div>
+    </MarketingShell>
   );
 }

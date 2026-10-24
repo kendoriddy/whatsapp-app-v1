@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1200" viewBox="0 0 900 1200" role="img" aria-label="Placeholder team photo">
+  <defs>
+    <linearGradient id="t" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#d4c4b0"/>
+      <stop offset="100%" stop-color="#a89078"/>
+    </linearGradient>
+  </defs>
+  <rect width="900" height="1200" fill="url(#t)"/>
+  <circle cx="320" cy="480" r="110" fill="#e8d5c4"/>
+  <circle cx="560" cy="460" r="100" fill="#c9b09a"/>
+  <rect x="200" y="620" width="500" height="400" rx="40" fill="#5c4a3a" opacity="0.35"/>
+  <text x="60" y="1140" fill="#111b21" font-family="system-ui,sans-serif" font-size="24" opacity="0.45">Replace with team.jpg</text>
+</svg>
