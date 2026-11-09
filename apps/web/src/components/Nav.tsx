@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { WORKSPACE_NAME } from "@/lib/brand";
 
 const links = [
@@ -20,6 +20,20 @@ export function Nav() {
   const path = usePathname();
   const router = useRouter();
   const [busy, setBusy] = useState(false);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    setOpen(false);
+  }, [path]);
+
+  useEffect(() => {
+    if (!open) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open]);
 
   // Public marketing / legal / auth — no desk chrome
   if (
@@ -45,36 +59,76 @@ export function Nav() {
   }
 
   return (
-    <nav className="nav">
-      <div className="brand">
-        <span className="brand-workspace">{WORKSPACE_NAME}</span>
-      </div>
-      {links.map((l) => (
-        <Link
-          key={l.href}
-          href={l.href}
-          className={path.startsWith(l.href) ? "active" : ""}
+    <nav className={open ? "nav nav-open" : "nav"}>
+      <div className="nav-bar">
+        <div className="brand">
+          <span className="brand-workspace">{WORKSPACE_NAME}</span>
+        </div>
+        <button
+          type="button"
+          className="nav-toggle"
+          aria-expanded={open}
+          aria-controls="app-nav-menu"
+          aria-label={open ? "Close menu" : "Open menu"}
+          onClick={() => setOpen((v) => !v)}
         >
-          {l.label}
-        </Link>
-      ))}
-      <button
-        type="button"
-        onClick={signOut}
-        disabled={busy}
-        style={{
-          marginTop: "auto",
-          padding: "0.55rem 0.75rem",
-          borderRadius: 8,
-          border: "1px solid var(--border)",
-          background: "transparent",
-          color: "var(--muted)",
-          cursor: "pointer",
-          textAlign: "left",
-        }}
-      >
-        {busy ? "Signing out…" : "Sign out"}
-      </button>
+          {open ? (
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              aria-hidden="true"
+            >
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
+          ) : (
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              aria-hidden="true"
+            >
+              <path d="M4 7h16M4 12h16M4 17h16" />
+            </svg>
+          )}
+        </button>
+      </div>
+      {open && (
+        <button
+          type="button"
+          className="nav-backdrop"
+          aria-label="Close menu"
+          onClick={() => setOpen(false)}
+        />
+      )}
+      <div id="app-nav-menu" className="nav-links">
+        {links.map((l) => (
+          <Link
+            key={l.href}
+            href={l.href}
+            className={path.startsWith(l.href) ? "active" : ""}
+            onClick={() => setOpen(false)}
+          >
+            {l.label}
+          </Link>
+        ))}
+        <button
+          type="button"
+          className="nav-signout"
+          onClick={signOut}
+          disabled={busy}
+        >
+          {busy ? "Signing out…" : "Sign out"}
+        </button>
+      </div>
     </nav>
   );
 }

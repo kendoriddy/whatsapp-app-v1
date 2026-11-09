@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { MarketingShell } from "@/components/landing/MarketingShell";
+import { ReceiptSkeleton } from "@/components/loading/LoadingState";
 
 type Receipt = {
   reference: string;
@@ -38,8 +39,8 @@ function PayThanksInner() {
       return;
     }
     let cancelled = false;
-    const load = async () => {
-      setLoading(true);
+    const load = async (initial: boolean) => {
+      if (initial) setLoading(true);
       try {
         const res = await fetch(
           `/api/pay/receipt?reference=${encodeURIComponent(reference)}`,
@@ -57,9 +58,9 @@ function PayThanksInner() {
         if (!cancelled) setLoading(false);
       }
     };
-    void load();
+    void load(true);
     // Webhook may lag a few seconds behind the redirect.
-    const t = setInterval(() => void load(), 4000);
+    const t = setInterval(() => void load(false), 4000);
     const stop = setTimeout(() => clearInterval(t), 30000);
     return () => {
       cancelled = true;
@@ -76,11 +77,7 @@ function PayThanksInner() {
           Thank you. Your seller will confirm on WhatsApp shortly.
         </p>
       )}
-      {loading && (
-        <p className="mkt-auth-lead" style={{ marginTop: "0.75rem" }}>
-          Loading receipt…
-        </p>
-      )}
+      {loading && !receipt && <ReceiptSkeleton />}
       {error && (
         <p className="mkt-error" style={{ marginTop: "0.75rem" }}>
           {error}
@@ -144,9 +141,7 @@ export default function PayThanksPage() {
         fallback={
           <div className="mkt-auth-card">
             <h1>Payment received</h1>
-            <p className="mkt-auth-lead" style={{ marginTop: "0.75rem" }}>
-              Loading…
-            </p>
+            <ReceiptSkeleton />
           </div>
         }
       >

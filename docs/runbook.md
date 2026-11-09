@@ -26,12 +26,12 @@ Follow `spec-v2.md` §23. Settings → WhatsApp → Refresh from Meta → Set as
 pnpm tsx scripts/reprocess-event.ts --id <webhookEventId>
 ```
 
-## Merlin auto-reply + knowledge bank
+## Merlin knowledge base + answering for the business
 
-1. **Settings → Merlin** → turn **Merlin auto-reply ON** (writes `auto_send.merlin_replies` + `ai.merlin_auto_reply`; default OFF per R-2).
-2. Upload FAQs / price lists / policies (`.md`, `.txt`, `.csv`, `.html`, `.json`, `.docx`, `.pdf`). Files are extracted to markdown in `knowledge_doc`.
-3. Inbound messages are classified, then Merlin may auto-send a grounded reply (`origin=ai_suggestion`, `auto_sent=true`) only while the toggle is on and the 24h window is open.
-4. Turn the toggle **OFF** to stop auto-replies immediately. Disable or delete individual docs to remove them from context.
+1. **Settings → Merlin** → upload FAQs / price lists / policies (`.md`, `.txt`, `.csv`, `.html`, `.json`, `.docx`, `.pdf`, `.xlsx`, `.pptx`, or a photo of a document). Files are extracted to markdown in `knowledge_doc`, chunked for search, and originals go in the private `knowledge` Storage bucket.
+2. Turn **Merlin answering ON** (writes `auto_send.merlin_replies` + `ai.merlin_auto_reply`; default OFF per R-2). Merlin only answers questions the knowledge base covers; decision-needed chats stay in the inbox for staff.
+3. Inbound messages are classified, then Merlin may send a grounded reply (`origin=ai_suggestion`, `auto_sent=true`, labelled **Merlin** in the thread) only while the toggle is on and the 24h window is open.
+4. Turn the toggle **OFF** to stop answering immediately. Disable or delete individual docs to remove them from context.
 
 ## Paystack
 

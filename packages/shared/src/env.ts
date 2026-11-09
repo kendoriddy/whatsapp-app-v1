@@ -9,6 +9,7 @@ const envSchema = z.object({
   SUPABASE_ANON_KEY: z.string().min(1),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
   STORAGE_BUCKET_MEDIA: z.string().default("wa-media"),
+  STORAGE_BUCKET_KNOWLEDGE: z.string().default("knowledge"),
   META_GRAPH_API_BASE_URL: z.string().url(),
   META_GRAPH_API_VERSION: z.string().default("v25.0"),
   META_APP_ID: z.string().min(1),

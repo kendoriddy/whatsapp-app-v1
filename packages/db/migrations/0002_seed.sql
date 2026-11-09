@@ -20,5 +20,5 @@ insert into automation_setting (key, enabled, allowed_origin, config, descriptio
   ('auto_send.payment_received_ack', false, 'system_auto', '{"template_when_window_closed":"order_update"}', 'Auto thank-you on payment'),
   ('auto_send.out_of_hours_ack', false, 'system_auto', '{"hours":{"mon_sat":["08:00","19:00"]},"text":""}', 'Out-of-hours auto ack'),
   ('auto_send.followup_reminders', false, 'followup', '{"max_per_conversation":2}', 'Auto-send follow-up reminders'),
-  ('auto_send.merlin_replies', false, 'ai_suggestion', '{"skip_spam":true,"max_chars":900,"require_knowledge":false}', 'When on, Merlin may auto-reply to inbound WhatsApp using the knowledge bank')
+  ('auto_send.merlin_replies', false, 'ai_suggestion', '{"skip_spam":true,"max_chars":900,"require_knowledge":true}', 'When on, Merlin may answer customers from the knowledge bank on behalf of the business')
 on conflict (key) do nothing;

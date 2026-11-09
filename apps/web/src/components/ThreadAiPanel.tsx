@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api-client";
+import { PanelSkeleton } from "@/components/loading/LoadingState";
 
 type Summary = {
   headline: string;
@@ -168,9 +169,7 @@ export function ThreadAiPanel({ conversationId }: { conversationId: string }) {
           </header>
 
           <div className="ai-panel-scroll">
-            {loading && !data && !error && (
-              <p className="muted">Merlin is reading this thread…</p>
-            )}
+            {loading && !data && !error && <PanelSkeleton />}
 
             {error && <p className="ai-panel-error">{error}</p>}
 

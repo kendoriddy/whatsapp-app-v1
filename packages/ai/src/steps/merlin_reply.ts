@@ -1,8 +1,8 @@
 import type { LlmClient } from "../llm.js";
 import { hashInput } from "../llm.js";
 
-export const MERLIN_REPLY_PROMPT_VERSION = "merlin-reply-v1.0.0";
-export const MERLIN_REPLY_STEP_VERSION = "1.0.0";
+export const MERLIN_REPLY_PROMPT_VERSION = "merlin-reply-v1.1.0";
+export const MERLIN_REPLY_STEP_VERSION = "1.1.0";
 
 export type MerlinReplyResult = {
   reply: string | null;
@@ -14,8 +14,8 @@ export type MerlinReplyResult = {
 
 /**
  * Draft a customer-facing WhatsApp reply grounded in the knowledge bank + thread.
- * When the bank has no answer, Merlin may still greet / ask a clarifying question
- * unless requireKnowledge is true.
+ * Answers like a staff member when the bank covers the question.
+ * Stays silent when a human decision is required (unless it is a bare greeting).
  */
 export async function merlinAutoReply(
   llm: LlmClient,
@@ -28,7 +28,7 @@ export async function merlinAutoReply(
   },
 ): Promise<MerlinReplyResult> {
   const maxChars = args.maxChars ?? 900;
-  const requireKnowledge = args.requireKnowledge ?? false;
+  const requireKnowledge = args.requireKnowledge ?? true;
   const hasKnowledge = args.knowledgeMarkdown.trim().length > 0;
   const inputHash = hashInput({
     conversationText: args.conversationText,
@@ -52,16 +52,17 @@ export async function merlinAutoReply(
   }>({
     model: args.model,
     system: [
-      "You are Merlin, the MMABON WhatsApp order-desk assistant.",
-      "Reply as staff would on WhatsApp: warm, concise, Nigerian English OK.",
-      "Use ONLY facts from the knowledge bank and the conversation.",
-      "Do NOT invent prices, lead times, product specs, or policies.",
-      "If the customer asks for a price/quote not in the knowledge bank, say a teammate will confirm — do not guess ₦ amounts.",
-      "Do not send payment links.",
+      "You are Merlin, answering WhatsApp customers on behalf of this business — like a staff member would.",
+      "Voice: warm, concise, Nigerian English OK. Sign off as the business desk, not as an AI.",
+      "Use ONLY facts from the knowledge bank and the conversation. Never invent prices, lead times, product specs, policies, or payment details.",
+      "Do not send payment links or ask for card details.",
       `Keep reply under ${maxChars} characters.`,
-      "Set should_reply=false for spam, abuse, or when a human must handle (complex complaints, refunds, legal).",
+      "Answer when the knowledge bank covers it: hours, products, how to order, delivery policy, published prices that appear in the bank.",
+      "A bare greeting (hi/hello/good morning) may get a short acknowledgement even if no chunk matched.",
+      "Set should_reply=false (and reply=null) for: spam/abuse; complaints; refunds; legal; custom quotes or prices not in the bank; order changes that need a person; anything that needs a decision a staff member must make.",
+      "When should_reply=false, do not apologise at length — leave the chat for a human.",
       requireKnowledge
-        ? "If the knowledge bank does not cover the question, should_reply=false."
+        ? "If the knowledge bank does not cover a factual business question, should_reply=false."
         : "If knowledge is thin, you may still ask one clarifying question or acknowledge.",
     ].join(" "),
     user: [

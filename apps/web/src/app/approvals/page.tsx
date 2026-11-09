@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api-client";
 import { SideDrawer } from "@/components/SideDrawer";
+import { TableSkeleton } from "@/components/loading/LoadingState";
 import { formatWhen } from "@/lib/format";
 
 type Approval = {
@@ -87,33 +88,43 @@ export default function ApprovalsPage() {
             <tr>
               <th>Customer</th>
               <th>Preview</th>
-              <th>Origin</th>
-              <th>Submitted</th>
-              <th>By</th>
+              <th className="col-secondary">Origin</th>
+              <th className="col-secondary">Submitted</th>
+              <th className="col-secondary">By</th>
             </tr>
           </thead>
           <tbody>
+            {loading && items.length === 0 && (
+              <TableSkeleton rows={5} columns={5} label="Loading approvals" />
+            )}
             {items.map((a) => (
               <tr
                 key={a.id}
                 className="row-clickable"
                 onClick={() => setSelected(a)}
               >
-                <td>
+                <td data-label="Customer">
                   {a.customerName}
                   {a.customerPhone && (
                     <div className="muted tiny">{a.customerPhone}</div>
                   )}
                 </td>
-                <td className="clamp-cell">{a.bodyText ?? `[${a.kind}]`}</td>
-                <td>{a.origin}</td>
-                <td className="muted tiny">{formatWhen(a.createdAt)}</td>
-                <td>{a.createdByName ?? "—"}</td>
+                <td className="clamp-cell" data-label="Preview">
+                  {a.bodyText ?? `[${a.kind}]`}
+                </td>
+                <td className="col-secondary" data-label="Origin">
+                  {a.origin}
+                </td>
+                <td className="muted tiny col-secondary" data-label="Submitted">
+                  {formatWhen(a.createdAt)}
+                </td>
+                <td className="col-secondary" data-label="By">
+                  {a.createdByName ?? "—"}
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
-        {loading && <p className="muted table-empty">Loading…</p>}
         {!loading && items.length === 0 && (
           <p className="muted table-empty">
             Empty — no pending approvals. Designer/production submits land here;

@@ -20,6 +20,6 @@ on conflict (key) do nothing;
 
 insert into automation_setting (key, enabled, allowed_origin, config, description) values
   ('auto_send.merlin_replies', false, 'ai_suggestion',
-   '{"skip_spam":true,"max_chars":900,"require_knowledge":false}',
-   'When on, Merlin may auto-reply to inbound WhatsApp using the knowledge bank')
+   '{"skip_spam":true,"max_chars":900,"require_knowledge":true}',
+   'When on, Merlin may answer customers from the knowledge bank on behalf of the business')
 on conflict (key) do nothing;

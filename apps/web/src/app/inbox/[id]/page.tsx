@@ -6,6 +6,7 @@ import { api } from "@/lib/api-client";
 import { ConversationList } from "@/components/ConversationList";
 import { ThreadAiPanel } from "@/components/ThreadAiPanel";
 import { ThreadInvoicePanel } from "@/components/ThreadInvoicePanel";
+import { ThreadSkeleton } from "@/components/loading/LoadingState";
 import { formatTime } from "@/lib/format";
 
 const RAIL_KEY = "mmabon_chat_rail_open";
@@ -20,6 +21,8 @@ type Msg = {
   status: string;
   classification: string | null;
   waTimestamp: string;
+  senderLabel?: "Customer" | "Staff" | "Merlin";
+  autoSent?: boolean;
 };
 
 type PendingMsg = Msg & { clientId: string };
@@ -28,6 +31,7 @@ export default function ThreadPage() {
   const params = useParams<{ id: string }>();
   const [messages, setMessages] = useState<Msg[]>([]);
   const [pending, setPending] = useState<PendingMsg[]>([]);
+  const [messagesLoaded, setMessagesLoaded] = useState(false);
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [railOpen, setRailOpen] = useState(false);
@@ -38,13 +42,26 @@ export default function ThreadPage() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
+    const mobile = window.matchMedia("(max-width: 800px)").matches;
+    if (mobile) {
+      setRailOpen(false);
+      return;
+    }
     setRailOpen(localStorage.getItem(RAIL_KEY) === "1");
   }, []);
+
+  useEffect(() => {
+    if (window.matchMedia("(max-width: 800px)").matches) {
+      setRailOpen(false);
+    }
+  }, [params.id]);
 
   function toggleRail() {
     setRailOpen((open) => {
       const next = !open;
-      localStorage.setItem(RAIL_KEY, next ? "1" : "0");
+      if (!window.matchMedia("(max-width: 800px)").matches) {
+        localStorage.setItem(RAIL_KEY, next ? "1" : "0");
+      }
       return next;
     });
   }
@@ -69,15 +86,18 @@ export default function ThreadPage() {
   const load = useCallback(() => {
     return api<{ items: Msg[] }>(`/api/conversations/${params.id}/messages`)
       .then((r) => setMessages(r.items))
-      .catch((e) => setError(String(e.message)));
+      .catch((e) => setError(String(e.message)))
+      .finally(() => setMessagesLoaded(true));
   }, [params.id]);
 
   useEffect(() => {
     stickToBottom.current = true;
     setMessages([]);
     setPending([]);
+    setMessagesLoaded(false);
     setShowJumpBottom(false);
     setText("");
+    setError(null);
     void load();
     const t = setInterval(() => void load(), 4000);
     return () => clearInterval(t);
@@ -187,7 +207,28 @@ export default function ThreadPage() {
         className="chat-rail panel"
         aria-label="Other chats"
       >
-        <div className="chat-rail-head">Chats</div>
+        <div className="chat-rail-head">
+          <span>Chats</span>
+          <button
+            type="button"
+            className="icon-btn chat-rail-close"
+            aria-label="Close chats"
+            onClick={toggleRail}
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              aria-hidden="true"
+            >
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
+          </button>
+        </div>
         <ConversationList activeId={params.id} plain />
       </aside>
       <div className="thread">
@@ -225,12 +266,15 @@ export default function ThreadPage() {
             className="panel thread-scroll"
             onScroll={updateNearBottom}
           >
-            {threadItems.length === 0 && (
+            {!messagesLoaded && <ThreadSkeleton />}
+            {messagesLoaded && threadItems.length === 0 && (
               <p className="muted">No messages in this thread yet.</p>
             )}
             {threadItems.map((m) => {
               const isPending = m.status === "sending";
-              const label = m.direction === "inbound" ? "Customer" : "Staff";
+              const label =
+                m.senderLabel ??
+                (m.direction === "inbound" ? "Customer" : "Staff");
               const meta =
                 m.direction === "outbound"
                   ? isPending
@@ -240,7 +284,7 @@ export default function ThreadPage() {
               return (
                 <div
                   key={m.id}
-                  className={`msg ${m.direction === "inbound" ? "in" : "out"}${isPending ? " pending" : ""}`}
+                  className={`msg ${m.direction === "inbound" ? "in" : "out"}${isPending ? " pending" : ""}${label === "Merlin" ? " merlin" : ""}`}
                   aria-busy={isPending || undefined}
                 >
                   <div className="msg-meta">
@@ -255,6 +299,7 @@ export default function ThreadPage() {
                   <div className="msg-foot muted">
                     {meta}
                     {m.type !== "text" && !isPending ? ` · ${m.type}` : ""}
+                    {label === "Merlin" && !isPending ? " · auto" : ""}
                   </div>
                 </div>
               );

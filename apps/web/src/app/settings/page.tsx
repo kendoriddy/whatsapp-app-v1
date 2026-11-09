@@ -6,7 +6,7 @@ const cards = [
   {
     href: "/settings/merlin",
     title: "Merlin",
-    body: "Auto-reply toggle and knowledge bank documents Merlin reads before answering customers.",
+    body: "Knowledge base and a toggle for Merlin to answer customers on behalf of the business.",
   },
   {
     href: "/settings/whatsapp",

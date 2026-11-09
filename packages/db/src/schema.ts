@@ -14,8 +14,15 @@ import {
   index,
   pgEnum,
   primaryKey,
+  customType,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
+
+const tsvector = customType<{ data: string }>({
+  dataType() {
+    return "tsvector";
+  },
+});
 
 export const appRole = pgEnum("app_role", ["admin", "sales", "designer", "production", "dispatch", "manager"]);
 export const msgDirection = pgEnum("msg_direction", ["inbound", "outbound"]);
@@ -488,6 +495,12 @@ export const changeEvent = pgTable("change_event", {
   acknowledged: jsonb("acknowledged").notNull().default({}),
 });
 
+export const knowledgeDocStatus = pgEnum("knowledge_doc_status", [
+  "processing",
+  "ready",
+  "failed",
+]);
+
 /** Staff knowledge bank — source files extracted to markdown for Merlin. */
 export const knowledgeDoc = pgTable("knowledge_doc", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -497,7 +510,30 @@ export const knowledgeDoc = pgTable("knowledge_doc", {
   markdown: text("markdown").notNull(),
   charCount: integer("char_count").notNull().default(0),
   enabled: boolean("enabled").notNull().default(true),
+  status: knowledgeDocStatus("status").notNull().default("ready"),
+  error: text("error"),
+  storagePath: text("storage_path"),
+  byteSize: integer("byte_size"),
   createdBy: uuid("created_by").references(() => staffUser.id),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+/** Searchable slices of a knowledge document for Merlin retrieval. */
+export const knowledgeChunk = pgTable(
+  "knowledge_chunk",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    docId: uuid("doc_id")
+      .notNull()
+      .references(() => knowledgeDoc.id, { onDelete: "cascade" }),
+    ordinal: integer("ordinal").notNull(),
+    markdown: text("markdown").notNull(),
+    searchVector: tsvector("search_vector").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("knowledge_chunk_doc_ordinal_uidx").on(t.docId, t.ordinal),
+    index("knowledge_chunk_doc_idx").on(t.docId, t.ordinal),
+  ],
+);

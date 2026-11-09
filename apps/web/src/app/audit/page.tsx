@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api-client";
 import { SideDrawer } from "@/components/SideDrawer";
+import { TableSkeleton } from "@/components/loading/LoadingState";
 import { formatWhen } from "@/lib/format";
 
 type AuditRow = {
@@ -48,21 +49,26 @@ export default function AuditPage() {
             </tr>
           </thead>
           <tbody>
+            {loading && items.length === 0 && (
+              <TableSkeleton rows={6} columns={4} label="Loading audit log" />
+            )}
             {items.map((row) => (
               <tr
                 key={row.id}
                 className="row-clickable"
                 onClick={() => setSelected(row)}
               >
-                <td className="muted tiny">{formatWhen(row.at)}</td>
-                <td>
+                <td className="muted tiny" data-label="When">
+                  {formatWhen(row.at)}
+                </td>
+                <td data-label="Actor">
                   {row.actorName ?? row.actorKind}
                   <div className="muted tiny">{row.actorKind}</div>
                 </td>
-                <td>
+                <td data-label="Action">
                   <code>{row.action}</code>
                 </td>
-                <td>
+                <td data-label="Entity">
                   {row.entityType}
                   <div className="muted tiny clamp-cell">{row.entityId}</div>
                 </td>
@@ -70,7 +76,6 @@ export default function AuditPage() {
             ))}
           </tbody>
         </table>
-        {loading && <p className="muted table-empty">Loading…</p>}
         {!loading && items.length === 0 && !error && (
           <p className="muted table-empty">
             No audit events yet. Overrides, approvals, and WhatsApp number

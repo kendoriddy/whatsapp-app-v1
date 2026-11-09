@@ -5,11 +5,9 @@ import {
   automationSetting,
   conversation,
   featureFlag,
-  knowledgeDoc,
   message,
   outboundMessage,
 } from "@mmabon/db";
-// featureFlag kept in sync with Settings → Merlin toggle
 import {
   createGatewayLlmClient,
   merlinAutoReply,
@@ -18,9 +16,13 @@ import {
 } from "@mmabon/ai";
 import { isWindowOpen, loadEnv } from "@mmabon/shared";
 import { handleSendOutbound } from "./send-outbound.js";
+import {
+  KNOWLEDGE_BUDGET,
+  retrieveKnowledgeMarkdown,
+} from "../lib/retrieve-knowledge.js";
+import { shouldAttemptMerlinReply } from "../lib/merlin-gate.js";
 
 const AUTOMATION_KEY = "auto_send.merlin_replies";
-const KNOWLEDGE_BUDGET = 28_000;
 
 type MerlinConfig = {
   skip_spam?: boolean;
@@ -29,8 +31,8 @@ type MerlinConfig = {
 };
 
 /**
- * After an inbound message is classified, optionally let Merlin auto-reply
- * when AS:auto_send.merlin_replies is enabled (R-2 auto_sent path).
+ * After an inbound message is classified, optionally let Merlin answer on
+ * behalf of the business when AS:auto_send.merlin_replies is enabled (R-2).
  */
 export async function handleMerlinAutoReply(
   db: Db,
@@ -43,25 +45,21 @@ export async function handleMerlinAutoReply(
     .from(automationSetting)
     .where(eq(automationSetting.key, AUTOMATION_KEY))
     .limit(1);
-  if (!auto?.enabled) return;
-
   // Soft companion flag (kept in sync by Settings UI).
   const [flag] = await db
     .select()
     .from(featureFlag)
     .where(eq(featureFlag.key, "ai.merlin_auto_reply"))
     .limit(1);
-  if (flag && !flag.enabled) return;
 
   const [msg] = await db
     .select()
     .from(message)
     .where(eq(message.id, messageId))
     .limit(1);
-  if (!msg || msg.direction !== "inbound") return;
+  if (!msg) return;
 
-  const config = (auto.config ?? {}) as MerlinConfig;
-  if (config.skip_spam !== false && msg.classification === "spam") return;
+  const config = (auto?.config ?? {}) as MerlinConfig;
 
   const [conv] = await db
     .select()
@@ -70,12 +68,21 @@ export async function handleMerlinAutoReply(
     .limit(1);
   if (!conv) return;
 
+  const windowOpen = isWindowOpen(
+    conv.lastInboundAt,
+    new Date(),
+    env.WINDOW_SAFETY_MARGIN_SECONDS,
+  );
+
   if (
-    !isWindowOpen(
-      conv.lastInboundAt,
-      new Date(),
-      env.WINDOW_SAFETY_MARGIN_SECONDS,
-    )
+    !shouldAttemptMerlinReply({
+      autoEnabled: Boolean(auto?.enabled),
+      featureFlagEnabled: flag?.enabled,
+      direction: msg.direction,
+      classification: msg.classification,
+      skipSpam: config.skip_spam !== false,
+      windowOpen,
+    })
   ) {
     return;
   }
@@ -100,22 +107,11 @@ export async function handleMerlinAutoReply(
     return;
   }
 
-  const docs = await db
-    .select({
-      title: knowledgeDoc.title,
-      markdown: knowledgeDoc.markdown,
-    })
-    .from(knowledgeDoc)
-    .where(eq(knowledgeDoc.enabled, true))
-    .orderBy(desc(knowledgeDoc.updatedAt))
-    .limit(40);
-
-  let knowledge = "";
-  for (const d of docs) {
-    const chunk = `### ${d.title}\n${d.markdown}\n\n`;
-    if (knowledge.length + chunk.length > KNOWLEDGE_BUDGET) break;
-    knowledge += chunk;
-  }
+  const customerText = (msg.textBody ?? msg.caption ?? "").trim();
+  const retrieved = await retrieveKnowledgeMarkdown(db, {
+    query: customerText,
+    budget: KNOWLEDGE_BUDGET,
+  });
 
   const history = await db
     .select({
@@ -150,12 +146,13 @@ export async function handleMerlinAutoReply(
   });
 
   const model = env.AI_SUGGEST_MODEL || env.AI_SUMMARY_MODEL || "auto";
+  const requireKnowledge = config.require_knowledge ?? true;
   const result = await merlinAutoReply(llm, {
     model,
     conversationText,
-    knowledgeMarkdown: knowledge,
+    knowledgeMarkdown: retrieved.markdown,
     maxChars: config.max_chars ?? 900,
-    requireKnowledge: config.require_knowledge ?? false,
+    requireKnowledge,
   });
 
   await db.insert(aiRun).values({
@@ -169,8 +166,9 @@ export async function handleMerlinAutoReply(
     inputHash: result.inputHash,
     input: {
       conversationId: conv.id,
-      knowledgeChars: knowledge.length,
-      requireKnowledge: config.require_knowledge ?? false,
+      knowledgeChars: retrieved.markdown.length,
+      knowledgeMode: retrieved.mode,
+      requireKnowledge,
     },
     output: {
       shouldReply: result.shouldReply,

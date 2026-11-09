@@ -2,18 +2,21 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api-client";
+import { TableSkeleton } from "@/components/loading/LoadingState";
 
 type Flag = { key: string; enabled: boolean; description: string };
 
 export default function FlagsPage() {
   const [items, setItems] = useState<Flag[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = () =>
     api<{ items: Flag[] }>("/api/settings/feature-flags")
       .then((r) => setItems(r.items))
-      .catch((e) => setError(String(e.message)));
+      .catch((e) => setError(String(e.message)))
+      .finally(() => setLoaded(true));
 
   useEffect(() => {
     void load();
@@ -39,8 +42,8 @@ export default function FlagsPage() {
     <div>
       <h1>Feature flags</h1>
       {error && <p style={{ color: "var(--danger)" }}>{error}</p>}
-      <div className="panel" style={{ marginTop: "1rem" }}>
-        <table>
+      <div className="panel table-wrap" style={{ marginTop: "1rem" }}>
+        <table className="data-table">
           <thead>
             <tr>
               <th>Key</th>
@@ -49,24 +52,34 @@ export default function FlagsPage() {
             </tr>
           </thead>
           <tbody>
-            {items.map((f) => (
-              <tr key={f.key}>
-                <td>
-                  <code>{f.key}</code>
-                </td>
-                <td>
-                  <button
-                    type="button"
-                    className="btn secondary"
-                    disabled={busy === f.key}
-                    onClick={() => void toggle(f.key, !f.enabled)}
-                  >
-                    {busy === f.key ? "…" : f.enabled ? "on" : "off"}
-                  </button>
-                </td>
-                <td className="muted">{f.description}</td>
-              </tr>
-            ))}
+            {!loaded && !error && (
+              <TableSkeleton
+                rows={4}
+                columns={3}
+                label="Loading feature flags"
+              />
+            )}
+            {loaded &&
+              items.map((f) => (
+                <tr key={f.key}>
+                  <td data-label="Key">
+                    <code>{f.key}</code>
+                  </td>
+                  <td data-label="Enabled">
+                    <button
+                      type="button"
+                      className="btn secondary"
+                      disabled={busy === f.key}
+                      onClick={() => void toggle(f.key, !f.enabled)}
+                    >
+                      {busy === f.key ? "…" : f.enabled ? "on" : "off"}
+                    </button>
+                  </td>
+                  <td className="muted" data-label="Description">
+                    {f.description}
+                  </td>
+                </tr>
+              ))}
           </tbody>
         </table>
       </div>

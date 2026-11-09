@@ -73,7 +73,7 @@ Beside the stage, the order also says who it is waiting on: the customer (missin
 
 **Audit.** A filterable history of who changed what: approvals, automation toggles, number switches, payments recorded by hand.
 
-**Merlin.** The in-thread assistant. On a conversation it can summarise the chat (what they want, what is still open, what to do next) and draft an invoice (description, amount, delivery, deposit) for staff to edit before anything is sent.
+**Merlin.** The in-thread assistant. On a conversation it can summarise the chat (what they want, what is still open, what to do next) and draft an invoice (description, amount, delivery, deposit) for staff to edit before anything is sent. Admins can also build a **knowledge base** (FAQs, price lists, policies) and turn on Merlin answering customers on behalf of the business from those documents. When that switch is off (the default), Merlin does not send. When it is on, Merlin still stays silent on quotes, complaints, refunds, and anything that needs a staff decision — and it still cannot confirm an order or take a payment.
 
 ## Product rules that should not be relaxed
 
@@ -81,7 +81,7 @@ These are product decisions, not implementation details. They are what makes Rel
 
 **Merlin does not invent the order.** If the customer did not say the fabric, the quantity, the colour split, or the price, that field stays missing. A photo is a reference: it can be described in notes and can prompt a question. It cannot become the product, the colour, or the price. A hedge (“maybe 80”, “mostly L”) stays provisional. “Assumed” is allowed only when the business has turned on an explicit default rule, and the screen says which rule.
 
-**Nothing reaches the customer unless a person sends it.** Clicking Send is the approval, and only sales, managers, and admins can do that. Designers, production, and dispatch can write a message and submit it. Merlin’s drafts, follow-ups, invoices, and payment links start unsent. An admin can turn on a specific automatic send (read receipts, a payment thank-you, an out-of-hours ack, follow-up reminders). Each of those is off by default, requires the admin to type the setting name to confirm, is written to the audit log, and shows a banner on every page while it is on.
+**Nothing reaches the customer unless a person sends it — or an admin has turned on that exact automatic send.** Clicking Send is the approval, and only sales, managers, and admins can do that. Designers, production, and dispatch can write a message and submit it. Merlin’s drafts, follow-ups, invoices, and payment links start unsent. An admin can turn on a specific automatic send (read receipts, a payment thank-you, an out-of-hours ack, follow-up reminders, or Merlin answering from the knowledge base). Each of those is off by default, is written to the audit log, and Merlin’s knowledge answers still cannot invent prices or close a sale.
 
 **The assistant cannot close the sale.** It cannot mark an order confirmed, paid, or fulfilled. Confirmation needs a staff click and a customer message that counts as acceptance. A payment that arrives before confirmation is flagged for sales (“payment received — confirm the order”). It does not skip that step. “Ok, let me discuss with my team” is not acceptance.
 
@@ -93,7 +93,7 @@ These are product decisions, not implementation details. They are what makes Rel
 
 ## What this product is not
 
-- A chatbot that talks to customers by itself.
+- An always-on chatbot. Merlin may answer from the knowledge base only when an admin has turned that switch on, and only for questions the documents cover.
 - The personal WhatsApp app, a linked phone, or an import of old chats. The only source of messages is Meta’s WhatsApp Cloud API.
 - Group chats, voice or video calls, or marketing broadcasts.
 - A multi-brand SaaS in the current build. The desk is one workspace. The public site talks about plans and “start free”; signup today only records interest. It does not create a new workspace.
@@ -132,6 +132,7 @@ Use this when scoping the next increment. The public site describes the product 
 - Shared inbox and a thread a person can reply in.
 - Message classification into inquiry, complaint, order, or spam.
 - Merlin on a thread: a written summary, and a draft invoice the staff member edits (description, goods amount, delivery, deposit as a percent or a fixed amount, or full payment).
+- Settings → Merlin: knowledge base uploads and an admin toggle for Merlin to answer covered customer questions from those documents (default off).
 - Orders list and order detail, with stage, what the order is waiting on, invoice total, amount paid, and balance.
 - Paystack payment links and a customer receipt after payment. Manual payment recording for admin and manager.
 - Dashboard cards: open chats, inbound in the last 7 days, pending approvals, classifications that need review.
@@ -148,4 +149,4 @@ Use this when scoping the next increment. The public site describes the product 
 
 **Intentionally out of this version**
 
-A customer-facing bot, group chats, calling, broadcast campaigns, and importing history from the WhatsApp phone app.
+Always-on unsupervised chatting, group chats, calling, broadcast campaigns, and importing history from the WhatsApp phone app. Escalating unanswered Merlin questions to email/WhatsApp for the nearest staff is a later step.

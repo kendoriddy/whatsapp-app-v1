@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api-client";
+import { InlineSkeleton } from "@/components/loading/LoadingState";
 
 type Payment = {
   id: string;
@@ -62,16 +63,20 @@ export function ThreadInvoicePanel({
   const [ok, setOk] = useState<string | null>(null);
   const [merlinNote, setMerlinNote] = useState<string | null>(null);
   const [items, setItems] = useState<OrderBundle[]>([]);
+  const [paymentsLoaded, setPaymentsLoaded] = useState(false);
 
   const load = useCallback(() => {
     api<{ items: OrderBundle[] }>(
       `/api/conversations/${conversationId}/payments`,
     )
       .then((r) => setItems(r.items))
-      .catch(() => setItems([]));
+      .catch(() => setItems([]))
+      .finally(() => setPaymentsLoaded(true));
   }, [conversationId]);
 
   useEffect(() => {
+    setPaymentsLoaded(false);
+    setItems([]);
     void load();
     const t = setInterval(() => void load(), 8000);
     return () => clearInterval(t);
@@ -231,7 +236,11 @@ export function ThreadInvoicePanel({
         {open ? "Hide invoice" : "Create invoice"}
       </button>
 
-      {latestPay &&
+      {!paymentsLoaded && !open && (
+        <InlineSkeleton label="Loading invoice status" width="12rem" />
+      )}
+      {paymentsLoaded &&
+        latestPay &&
         !open &&
         (() => {
           const paidTotal = items[0]!.payments

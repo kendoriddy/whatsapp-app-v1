@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api-client";
 import { SideDrawer } from "@/components/SideDrawer";
+import { TableSkeleton } from "@/components/loading/LoadingState";
 import { formatWhen } from "@/lib/format";
 
 const LABELS = ["inquiry", "complaint", "order", "spam"] as const;
@@ -91,27 +92,37 @@ export default function AiReviewPage() {
               <th>Customer</th>
               <th>Message</th>
               <th>AI label</th>
-              <th>Confidence</th>
-              <th>When</th>
+              <th className="col-secondary">Confidence</th>
+              <th className="col-secondary">When</th>
             </tr>
           </thead>
           <tbody>
+            {loading && rows.length === 0 && (
+              <TableSkeleton rows={5} columns={5} label="Loading AI review" />
+            )}
             {rows.map((m) => (
               <tr
                 key={m.id}
                 className="row-clickable"
                 onClick={() => setSelected(m)}
               >
-                <td>{m.customerName}</td>
-                <td className="clamp-cell">{m.text}</td>
-                <td>{m.classification ?? "unclassified"}</td>
-                <td>{m.confidence ?? "—"}</td>
-                <td className="muted tiny">{formatWhen(m.waTimestamp)}</td>
+                <td data-label="Customer">{m.customerName}</td>
+                <td className="clamp-cell" data-label="Message">
+                  {m.text}
+                </td>
+                <td data-label="AI label">
+                  {m.classification ?? "unclassified"}
+                </td>
+                <td className="col-secondary" data-label="Confidence">
+                  {m.confidence ?? "—"}
+                </td>
+                <td className="muted tiny col-secondary" data-label="When">
+                  {formatWhen(m.waTimestamp)}
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
-        {loading && <p className="muted table-empty">Loading…</p>}
         {!loading && rows.length === 0 && (
           <p className="muted table-empty">
             Queue empty — nothing needs a classification override right now.

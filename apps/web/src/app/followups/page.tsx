@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api-client";
 import { SideDrawer } from "@/components/SideDrawer";
+import { TableSkeleton } from "@/components/loading/LoadingState";
 import { formatNaira } from "@/lib/money";
 import { formatWhen } from "@/lib/format";
 
@@ -56,39 +57,43 @@ export default function FollowupsPage() {
             <tr>
               <th>Customer</th>
               <th>Reason</th>
-              <th>Order</th>
+              <th className="col-secondary">Order</th>
               <th>Remaining</th>
-              <th>Due</th>
+              <th className="col-secondary">Due</th>
               <th>Status</th>
             </tr>
           </thead>
           <tbody>
+            {loading && rows.length === 0 && (
+              <TableSkeleton rows={5} columns={6} label="Loading follow-ups" />
+            )}
             {rows.map((f) => (
               <tr
                 key={f.id}
                 className="row-clickable"
                 onClick={() => setSelected(f)}
               >
-                <td>
+                <td data-label="Customer">
                   {f.customerName}
                   {f.customerPhone && (
                     <div className="muted tiny">{f.customerPhone}</div>
                   )}
                 </td>
-                <td>{f.reason.replace(/_/g, " ")}</td>
-                <td>{f.orderRef ?? "—"}</td>
-                <td>
+                <td data-label="Reason">{f.reason.replace(/_/g, " ")}</td>
+                <td className="col-secondary" data-label="Order">
+                  {f.orderRef ?? "—"}
+                </td>
+                <td data-label="Remaining">
                   {f.remainingKobo != null ? formatNaira(f.remainingKobo) : "—"}
                 </td>
-                <td className="muted tiny">
+                <td className="muted tiny col-secondary" data-label="Due">
                   {f.dueAt ? formatWhen(f.dueAt) : "—"}
                 </td>
-                <td>{f.status}</td>
+                <td data-label="Status">{f.status}</td>
               </tr>
             ))}
           </tbody>
         </table>
-        {loading && <p className="muted table-empty">Loading…</p>}
         {!loading && rows.length === 0 && (
           <p className="muted table-empty">
             No open follow-ups. Partial deposits with a remaining balance will

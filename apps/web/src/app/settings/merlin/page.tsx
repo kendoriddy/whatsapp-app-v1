@@ -4,6 +4,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api-client";
 import { SideDrawer } from "@/components/SideDrawer";
+import {
+  DrawerSkeleton,
+  InlineSkeleton,
+  TableSkeleton,
+} from "@/components/loading/LoadingState";
 import { formatWhen } from "@/lib/format";
 
 type Automation = {
@@ -21,6 +26,10 @@ type KnowledgeItem = {
   sourceMime: string;
   charCount: number;
   enabled: boolean;
+  status: "processing" | "ready" | "failed";
+  error: string | null;
+  storagePath: string | null;
+  byteSize: number | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -29,15 +38,37 @@ type KnowledgeDetail = KnowledgeItem & { markdown: string };
 
 const MERLIN_KEY = "auto_send.merlin_replies";
 
+function formatBytes(n: number | null | undefined): string {
+  if (n == null || n <= 0) return "—";
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function typeLabel(mime: string, filename: string): string {
+  const ext = filename.includes(".")
+    ? filename.slice(filename.lastIndexOf(".") + 1).toLowerCase()
+    : "";
+  if (ext) return ext;
+  if (mime.includes("pdf")) return "pdf";
+  if (mime.includes("word")) return "docx";
+  if (mime.includes("sheet") || mime.includes("excel")) return "xlsx";
+  if (mime.startsWith("image/")) return mime.slice(6);
+  if (mime.includes("markdown") || mime === "text/plain") return "md";
+  return mime.split("/").pop() || "file";
+}
+
 export default function MerlinSettingsPage() {
   const [auto, setAuto] = useState<Automation | null>(null);
   const [docs, setDocs] = useState<KnowledgeItem[]>([]);
+  const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [uploadBusy, setUploadBusy] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<KnowledgeDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
   const [editTitle, setEditTitle] = useState("");
   const [editMarkdown, setEditMarkdown] = useState("");
   const [pasteOpen, setPasteOpen] = useState(false);
@@ -56,6 +87,8 @@ export default function MerlinSettingsPage() {
       setDocs(k.items);
     } catch (e) {
       setError(String((e as Error).message));
+    } finally {
+      setReady(true);
     }
   }, []);
 
@@ -66,15 +99,19 @@ export default function MerlinSettingsPage() {
   useEffect(() => {
     if (!selectedId) {
       setDetail(null);
+      setDetailLoading(false);
       return;
     }
+    setDetail(null);
+    setDetailLoading(true);
     api<KnowledgeDetail>(`/api/settings/knowledge/${selectedId}`)
       .then((d) => {
         setDetail(d);
         setEditTitle(d.title);
         setEditMarkdown(d.markdown);
       })
-      .catch((e) => setError(String(e.message)));
+      .catch((e) => setError(String(e.message)))
+      .finally(() => setDetailLoading(false));
   }, [selectedId]);
 
   async function toggleMerlin(enabled: boolean) {
@@ -88,8 +125,8 @@ export default function MerlinSettingsPage() {
       });
       setNote(
         enabled
-          ? "Merlin auto-reply is ON. Upload knowledge docs so answers stay grounded."
-          : "Merlin auto-reply is OFF.",
+          ? "Merlin is ON — it will answer covered questions from your knowledge base."
+          : "Merlin is OFF — only staff reply to customers.",
       );
       await load();
     } catch (e) {
@@ -99,14 +136,16 @@ export default function MerlinSettingsPage() {
     }
   }
 
-  async function onUpload(file: File | null) {
-    if (!file) return;
+  async function onUpload(fileList: FileList | null) {
+    if (!fileList?.length) return;
     setUploadBusy(true);
     setError(null);
     setNote(null);
     try {
       const form = new FormData();
-      form.append("file", file);
+      for (const file of Array.from(fileList)) {
+        form.append("files", file);
+      }
       const res = await fetch("/api/settings/knowledge", {
         method: "POST",
         body: form,
@@ -115,11 +154,21 @@ export default function MerlinSettingsPage() {
       const json = (await res.json()) as {
         error?: { message?: string };
         title?: string;
+        items?: { title: string }[];
+        errors?: { filename: string; message: string }[];
       };
       if (!res.ok) {
         throw new Error(json.error?.message ?? "Upload failed");
       }
-      setNote(`Stored “${json.title}” as markdown.`);
+      const n = json.items?.length ?? 0;
+      const failN = json.errors?.length ?? 0;
+      setNote(
+        failN
+          ? `Stored ${n} document(s). ${failN} failed: ${json.errors!.map((e) => e.filename).join(", ")}`
+          : n === 1
+            ? `Stored “${json.items?.[0]?.title ?? json.title}” in the knowledge base.`
+            : `Stored ${n} documents in the knowledge base.`,
+      );
       await load();
     } catch (e) {
       setError(String((e as Error).message));
@@ -148,7 +197,7 @@ export default function MerlinSettingsPage() {
       setPasteOpen(false);
       setPasteTitle("");
       setPasteMarkdown("");
-      setNote(`Stored “${row.title}” as markdown.`);
+      setNote(`Stored “${row.title}” in the knowledge base.`);
       await load();
     } catch (e) {
       setError(String((e as Error).message));
@@ -225,18 +274,21 @@ export default function MerlinSettingsPage() {
       </p>
       <h1>Merlin</h1>
       <p className="muted">
-        When auto-reply is on, Merlin answers inbound WhatsApp using your
-        knowledge bank (R-2 automation — default off).
+        Upload business documents into the knowledge base. When answering is on,
+        Merlin replies to customers from those documents the way a staff member
+        would — and stays silent when a person must decide (R-2, default off).
       </p>
 
       {error && <p style={{ color: "var(--danger)" }}>{error}</p>}
       {note && <p className="invoice-ok">{note}</p>}
 
       <section className="panel" style={{ marginTop: "1rem" }}>
-        <h2 style={{ marginTop: 0, fontSize: "1rem" }}>Auto-reply</h2>
+        <h2 style={{ marginTop: 0, fontSize: "1rem" }}>
+          Answer on behalf of the business
+        </h2>
         <p className="muted" style={{ marginTop: 0 }}>
           {auto?.description ??
-            "Merlin may auto-reply to customers from the knowledge bank."}
+            "Merlin may answer customers from the knowledge bank on behalf of the business."}
         </p>
         <button
           type="button"
@@ -245,33 +297,42 @@ export default function MerlinSettingsPage() {
           onClick={() => void toggleMerlin(!auto?.enabled)}
         >
           {auto?.enabled
-            ? "Turn Merlin auto-reply OFF"
-            : "Turn Merlin auto-reply ON"}
+            ? "Turn Merlin answering OFF"
+            : "Turn Merlin answering ON"}
         </button>
         <p className="muted tiny" style={{ marginTop: "0.65rem" }}>
-          Status: <strong>{auto?.enabled ? "ON" : "OFF"}</strong>
-          {auto?.enabled
-            ? " — Merlin will send when it has a safe answer."
-            : " — staff must reply manually."}
+          Status:{" "}
+          {!ready ? (
+            <InlineSkeleton label="Loading Merlin status" width="3.5rem" />
+          ) : (
+            <>
+              <strong>{auto?.enabled ? "ON" : "OFF"}</strong>
+              {auto?.enabled
+                ? " — Merlin sends when the knowledge base covers the question."
+                : " — staff must reply manually."}
+            </>
+          )}
         </p>
       </section>
 
       <section className="panel" style={{ marginTop: "1rem" }}>
         <div className="page-head">
           <div>
-            <h2 style={{ margin: 0, fontSize: "1rem" }}>Knowledge bank</h2>
+            <h2 style={{ margin: 0, fontSize: "1rem" }}>Knowledge base</h2>
             <p className="muted" style={{ margin: "0.35rem 0 0" }}>
-              Upload any supported file — we extract and store markdown Merlin
-              can read (.md, .txt, .csv, .html, .json, .docx, .pdf).
+              Upload documents Merlin can read — .md, .txt, .csv, .html, .json,
+              .docx, .pdf, .xlsx, .pptx, or a photo of a document (max 12MB
+              each).
             </p>
           </div>
           <div className="invoice-form-actions">
             <input
               ref={fileRef}
               type="file"
-              accept=".md,.txt,.csv,.html,.htm,.json,.docx,.pdf,text/*,application/pdf,application/json"
+              multiple
+              accept=".md,.txt,.csv,.html,.htm,.json,.docx,.pdf,.xlsx,.xls,.pptx,.png,.jpg,.jpeg,.webp,text/*,application/pdf,application/json,image/*"
               hidden
-              onChange={(e) => void onUpload(e.target.files?.[0] ?? null)}
+              onChange={(e) => void onUpload(e.target.files)}
             />
             <button
               type="button"
@@ -287,7 +348,7 @@ export default function MerlinSettingsPage() {
               disabled={uploadBusy}
               onClick={() => fileRef.current?.click()}
             >
-              {uploadBusy ? "Extracting…" : "Upload document"}
+              {uploadBusy ? "Extracting…" : "Upload documents"}
             </button>
           </div>
         </div>
@@ -320,7 +381,7 @@ export default function MerlinSettingsPage() {
               disabled={uploadBusy || !pasteMarkdown.trim()}
               onClick={() => void savePaste()}
             >
-              Save to knowledge bank
+              Save to knowledge base
             </button>
           </div>
         )}
@@ -330,31 +391,62 @@ export default function MerlinSettingsPage() {
             <thead>
               <tr>
                 <th>Title</th>
-                <th>Source</th>
-                <th>Size</th>
+                <th className="col-secondary">Type</th>
+                <th>Status</th>
+                <th className="col-secondary">Size</th>
                 <th>Enabled</th>
-                <th>Updated</th>
+                <th className="col-secondary">Updated</th>
               </tr>
             </thead>
             <tbody>
-              {docs.map((d) => (
-                <tr
-                  key={d.id}
-                  className="row-clickable"
-                  onClick={() => setSelectedId(d.id)}
-                >
-                  <td>{d.title}</td>
-                  <td className="muted tiny">{d.sourceFilename}</td>
-                  <td className="muted tiny">
-                    {d.charCount.toLocaleString()} chars
-                  </td>
-                  <td>{d.enabled ? "on" : "off"}</td>
-                  <td className="muted tiny">{formatWhen(d.updatedAt)}</td>
-                </tr>
-              ))}
+              {!ready && (
+                <TableSkeleton
+                  rows={4}
+                  columns={6}
+                  label="Loading knowledge documents"
+                />
+              )}
+              {ready &&
+                docs.map((d) => (
+                  <tr
+                    key={d.id}
+                    className="row-clickable"
+                    onClick={() => setSelectedId(d.id)}
+                  >
+                    <td data-label="Title">{d.title}</td>
+                    <td className="muted tiny col-secondary" data-label="Type">
+                      {typeLabel(d.sourceMime, d.sourceFilename)}
+                    </td>
+                    <td className="muted tiny" data-label="Status">
+                      {d.status === "failed" ? (
+                        <span
+                          style={{ color: "var(--danger)" }}
+                          title={d.error ?? ""}
+                        >
+                          failed
+                        </span>
+                      ) : (
+                        d.status
+                      )}
+                    </td>
+                    <td className="muted tiny col-secondary" data-label="Size">
+                      {formatBytes(d.byteSize)}
+                      {d.charCount
+                        ? ` · ${d.charCount.toLocaleString()} chars`
+                        : ""}
+                    </td>
+                    <td data-label="Enabled">{d.enabled ? "on" : "off"}</td>
+                    <td
+                      className="muted tiny col-secondary"
+                      data-label="Updated"
+                    >
+                      {formatWhen(d.updatedAt)}
+                    </td>
+                  </tr>
+                ))}
             </tbody>
           </table>
-          {docs.length === 0 && (
+          {ready && docs.length === 0 && (
             <p className="muted table-empty">
               No documents yet. Upload FAQs, price lists, or policies so Merlin
               has something to cite.
@@ -370,9 +462,15 @@ export default function MerlinSettingsPage() {
         onClose={() => setSelectedId(null)}
         wide
       >
+        {detailLoading && !detail && (
+          <DrawerSkeleton label="Loading document" rows={4} />
+        )}
         {detail && (
           <div className="drawer-sections">
             <section>
+              {detail.status === "failed" && detail.error && (
+                <p style={{ color: "var(--danger)" }}>{detail.error}</p>
+              )}
               <label>
                 Title
                 <input
@@ -417,6 +515,13 @@ export default function MerlinSettingsPage() {
                 >
                   {detail.enabled ? "Disable" : "Enable"}
                 </button>
+                <a
+                  className="btn secondary"
+                  href={`/api/settings/knowledge/${detail.id}?download=1`}
+                  style={{ textDecoration: "none" }}
+                >
+                  Download original
+                </a>
                 <button
                   type="button"
                   className="btn secondary"

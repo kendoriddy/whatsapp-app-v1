@@ -4,6 +4,10 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api-client";
 import { SideDrawer } from "@/components/SideDrawer";
+import {
+  DrawerSkeleton,
+  TableSkeleton,
+} from "@/components/loading/LoadingState";
 import { formatNaira, labelStage, labelWaiting } from "@/lib/money";
 
 type OrderRow = {
@@ -165,6 +169,7 @@ export default function OrdersPage() {
       return;
     }
     let cancelled = false;
+    setDetail(null);
     setDetailLoading(true);
     setDetailError(null);
     setDatesNote(null);
@@ -280,17 +285,20 @@ export default function OrdersPage() {
             <tr>
               <th>Ref</th>
               <th>Customer</th>
-              <th>Item</th>
+              <th className="col-secondary">Item</th>
               <th>Stage</th>
-              <th>Waiting</th>
+              <th className="col-secondary">Waiting</th>
               <th>Total</th>
-              <th>Paid</th>
+              <th className="col-secondary">Paid</th>
               <th>Remaining</th>
-              <th>Owner</th>
-              <th>Updated</th>
+              <th className="col-secondary">Owner</th>
+              <th className="col-secondary">Updated</th>
             </tr>
           </thead>
           <tbody>
+            {loading && items.length === 0 && (
+              <TableSkeleton rows={6} columns={10} label="Loading orders" />
+            )}
             {items.map((o) => (
               <tr
                 key={o.id}
@@ -310,36 +318,45 @@ export default function OrdersPage() {
                 role="button"
                 aria-label={`Open order ${o.ref}`}
               >
-                <td>
+                <td data-label="Ref">
                   <code>{o.ref}</code>
                 </td>
-                <td>
+                <td data-label="Customer">
                   <div>{o.customerName}</div>
                   {o.customerPhone && (
                     <div className="muted tiny">{o.customerPhone}</div>
                   )}
                 </td>
-                <td className="clamp-cell">{o.description ?? "—"}</td>
-                <td>
+                <td className="clamp-cell col-secondary" data-label="Item">
+                  {o.description ?? "—"}
+                </td>
+                <td data-label="Stage">
                   <StageChip stage={o.stage} />
                 </td>
-                <td>{labelWaiting(o.waitingOn)}</td>
-                <td>{formatNaira(o.invoiceTotalKobo)}</td>
-                <td>{formatNaira(o.paidKobo)}</td>
-                <td>
+                <td className="col-secondary" data-label="Waiting">
+                  {labelWaiting(o.waitingOn)}
+                </td>
+                <td data-label="Total">{formatNaira(o.invoiceTotalKobo)}</td>
+                <td className="col-secondary" data-label="Paid">
+                  {formatNaira(o.paidKobo)}
+                </td>
+                <td data-label="Remaining">
                   {o.remainingKobo > 0 ? (
                     formatNaira(o.remainingKobo)
                   ) : (
                     <span className="muted">Paid up</span>
                   )}
                 </td>
-                <td>{o.ownerName ?? "—"}</td>
-                <td className="muted tiny">{formatWhen(o.updatedAt)}</td>
+                <td className="col-secondary" data-label="Owner">
+                  {o.ownerName ?? "—"}
+                </td>
+                <td className="muted tiny col-secondary" data-label="Updated">
+                  {formatWhen(o.updatedAt)}
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
-        {loading && <p className="muted table-empty">Loading orders…</p>}
         {!loading && items.length === 0 && (
           <p className="muted table-empty">
             No orders yet — create one from a conversation (Create invoice).
@@ -359,7 +376,9 @@ export default function OrdersPage() {
         onClose={() => setSelectedId(null)}
         wide
       >
-        {detailLoading && <p className="muted">Loading details…</p>}
+        {detailLoading && !detail && (
+          <DrawerSkeleton label="Loading order details" rows={6} />
+        )}
         {detailError && <p style={{ color: "var(--danger)" }}>{detailError}</p>}
         {detail && (
           <div className="drawer-sections">

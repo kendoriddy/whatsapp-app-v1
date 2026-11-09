@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api-client";
+import { ListSkeleton } from "@/components/loading/LoadingState";
 
 type Conv = {
   id: string;
@@ -57,6 +58,7 @@ export function ConversationList({
       }
     >
       {error && <p style={{ color: "var(--danger)" }}>{error}</p>}
+      {!loaded && !error && <ListSkeleton rows={6} />}
       {loaded && items.length === 0 && !error && (
         <p className="muted">
           No conversations yet. Replay fixtures or wait for inbound.

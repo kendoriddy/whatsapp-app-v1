@@ -6,4 +6,5 @@ export * from "./steps/suggest_reply.js";
 export * from "./steps/summarize_thread.js";
 export * from "./steps/draft_invoice.js";
 export * from "./steps/merlin_reply.js";
+export * from "./knowledge/chunk.js";
 export * from "./validators/grounding.js";

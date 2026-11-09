@@ -12,6 +12,12 @@ export type LlmJsonResult<T> = {
   raw: unknown;
 };
 
+export type LlmImageInput = {
+  mime: string;
+  /** Raw base64 without data: prefix */
+  base64: string;
+};
+
 export interface LlmClient {
   completeJson<T>(args: {
     model: string;
@@ -19,6 +25,8 @@ export interface LlmClient {
     user: string;
     schemaName: string;
     schema: Record<string, unknown>;
+    /** Optional images for document OCR / vision (OpenAI-compatible content parts). */
+    images?: LlmImageInput[];
   }): Promise<LlmJsonResult<T>>;
 }
 
@@ -50,6 +58,7 @@ type CompleteArgs = {
   user: string;
   schemaName: string;
   schema: Record<string, unknown>;
+  images?: LlmImageInput[];
 };
 
 function providerLabel(baseURL?: string): string {
@@ -231,16 +240,31 @@ export function createOpenAiLlmClient(
   const client = new OpenAI({ apiKey, baseURL });
   return {
     async completeJson<T>(args: CompleteArgs) {
-      const { model, system, user, schemaName, schema } = args;
+      const { model, system, user, schemaName, schema, images } = args;
       const started = Date.now();
       const systemWithSchema = `${system}
 
 Respond with a single JSON object only (no markdown). It must match this JSON Schema name "${schemaName}":
 ${JSON.stringify(schema)}`;
 
+      const userContent: OpenAI.Chat.Completions.ChatCompletionContentPart[] = [
+        { type: "text", text: user },
+      ];
+      for (const img of images ?? []) {
+        userContent.push({
+          type: "image_url",
+          image_url: {
+            url: `data:${img.mime};base64,${img.base64}`,
+          },
+        });
+      }
+
       const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
         { role: "system", content: systemWithSchema },
-        { role: "user", content: user },
+        {
+          role: "user",
+          content: images?.length ? userContent : user,
+        },
       ];
 
       let res: OpenAI.Chat.Completions.ChatCompletion;
