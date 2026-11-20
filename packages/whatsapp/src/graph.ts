@@ -39,8 +39,16 @@ export function createGraphClient(opts: GraphClientOpts) {
     },
     async downloadUrl(url: string) {
       const res = await fetchFn(url, { headers: { Authorization: `Bearer ${opts.token}` } });
-      if (!res.ok) throw new Error(`Media download failed: ${res.status}`);
+      if (!res.ok) {
+        const err = new Error(`Media download failed: ${res.status}`) as Error & {
+          status: number;
+        };
+        err.status = res.status;
+        throw err;
+      }
       return Buffer.from(await res.arrayBuffer());
     },
   };
 }
+
+export type GraphMediaClient = ReturnType<typeof createGraphClient>;

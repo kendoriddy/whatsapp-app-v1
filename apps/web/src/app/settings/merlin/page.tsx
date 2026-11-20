@@ -150,6 +150,8 @@ export default function MerlinSettingsPage() {
         method: "POST",
         body: form,
         credentials: "include",
+        // Extraction (esp. photos) can take longer than normal API calls.
+        signal: AbortSignal.timeout(120_000),
       });
       const json = (await res.json()) as {
         error?: { message?: string };

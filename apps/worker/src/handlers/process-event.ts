@@ -12,6 +12,7 @@ import {
 } from "@mmabon/db";
 import { parseMetaWebhook, mapInboundType, extractTextBody, extractCaption } from "@mmabon/whatsapp";
 import { Jobs, type Queue } from "@mmabon/queue";
+import { defaultMediaFilename } from "../lib/media-path.js";
 
 const STATUS_RANK: Record<string, number> = {
   accepted: 0,
@@ -140,7 +141,12 @@ async function handleMessagesChange(
 
     const type = mapInboundType(String(msg.type));
     let mediaId: string | undefined;
-    const mediaObj = msg[type] as { id?: string; mime_type?: string; sha256?: string } | undefined;
+    const mediaObj = msg[type] as {
+      id?: string;
+      mime_type?: string;
+      sha256?: string;
+      filename?: string;
+    } | undefined;
     if (mediaObj?.id && ["image", "audio", "video", "document", "sticker"].includes(type)) {
       const [m] = await db
         .insert(mediaAsset)
@@ -148,12 +154,23 @@ async function handleMessagesChange(
           waMediaId: mediaObj.id,
           mimeType: mediaObj.mime_type,
           sha256Meta: mediaObj.sha256,
+          originalFilename: defaultMediaFilename(type, mediaObj.mime_type, mediaObj.filename),
           status: "pending",
           waIdExpiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
         })
         .returning();
       mediaId = m!.id;
-      await queue.send(Jobs.WA_DOWNLOAD_MEDIA, { mediaAssetId: mediaId }, { singletonKey: `media-${mediaId}` });
+      await queue.send(
+        Jobs.WA_DOWNLOAD_MEDIA,
+        { mediaAssetId: mediaId },
+        {
+          singletonKey: `media-${mediaId}`,
+          retryLimit: 8,
+          retryDelay: 30,
+          retryBackoff: true,
+          expireInSeconds: 600,
+        },
+      );
     }
 
     const waTs = new Date(Number(msg.timestamp) * 1000);

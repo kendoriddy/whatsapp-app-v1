@@ -157,6 +157,7 @@ export const mediaAsset = pgTable("media_asset", {
   sha256Meta: text("sha256_meta"),
   fileSize: bigint("file_size", { mode: "number" }),
   storagePath: text("storage_path"),
+  originalFilename: text("original_filename"),
   status: mediaStatus("status").notNull().default("pending"),
   attempts: integer("attempts").notNull().default(0),
   lastError: text("last_error"),
