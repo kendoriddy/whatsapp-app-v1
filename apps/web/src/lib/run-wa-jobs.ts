@@ -3,6 +3,7 @@ import { processWaEvent } from "../../../worker/src/handlers/process-event";
 import { handleSendOutbound } from "../../../worker/src/handlers/send-outbound";
 import { processPaystackEvent } from "../../../worker/src/handlers/process-paystack";
 import { handleClassify } from "../../../worker/src/handlers/classify";
+import { handleDownloadMedia } from "../../../worker/src/handlers/download-media";
 import { getDb } from "./db";
 
 /** Process ingest in-request so inbox works when the background worker is down. */
@@ -11,6 +12,12 @@ export async function processWebhookInline(
 ): Promise<void> {
   const db = getDb();
   const queue = createMemoryQueue();
+  await queue.work<{ mediaAssetId: string }>(
+    Jobs.WA_DOWNLOAD_MEDIA,
+    async (job) => {
+      await handleDownloadMedia(db, job.data.mediaAssetId);
+    },
+  );
   await queue.work<{ messageId: string }>(
     Jobs.AI_CLASSIFY_MESSAGE,
     async (job) => {
