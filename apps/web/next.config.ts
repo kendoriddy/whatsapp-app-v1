@@ -15,6 +15,9 @@ const nextConfig: NextConfig = {
     "@mmabon/domain",
   ],
   serverExternalPackages: ["postgres", "pg", "pg-boss", "pino"],
+  experimental: {
+    agentUpgrade: "security",
+  },
   // Turbopack does not map "./x.js" → "x.ts" (NodeNext idiom). Use webpack in
   // local/dev until upstream parity lands: https://github.com/vercel/next.js/issues/82945
   webpack: (config) => {
