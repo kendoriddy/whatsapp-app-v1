@@ -245,6 +245,68 @@ select {
 .msg-body {
   white-space: pre-wrap;
 }
+.msg-media {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 0;
+}
+.msg-media-status {
+  font-size: 0.9rem;
+  opacity: 0.8;
+  font-style: italic;
+}
+.msg-media-link {
+  display: block;
+  border-radius: 8px;
+  overflow: hidden;
+  max-width: min(280px, 100%);
+  line-height: 0;
+}
+.msg-media-thumb {
+  display: block;
+  width: 100%;
+  height: auto;
+  min-height: 72px;
+  max-height: 280px;
+  object-fit: contain;
+  background: rgba(0, 0, 0, 0.2);
+}
+.msg-media-audio,
+.msg-media-video {
+  width: min(280px, 100%);
+  max-width: 100%;
+  border-radius: 8px;
+}
+.msg-media-doc {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.18);
+  max-width: min(280px, 100%);
+}
+.msg-media-doc-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.9rem;
+}
+.msg-media-open {
+  flex-shrink: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--accent, #7dd3a0);
+  text-decoration: none;
+}
+.msg-media-open:hover {
+  text-decoration: underline;
+}
+.msg-media-caption {
+  white-space: pre-wrap;
+}
 .msg-foot {
   margin-top: 0.35rem;
   font-size: 0.75rem;

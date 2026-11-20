@@ -15,7 +15,13 @@ export async function processWebhookInline(
   await queue.work<{ mediaAssetId: string }>(
     Jobs.WA_DOWNLOAD_MEDIA,
     async (job) => {
-      await handleDownloadMedia(db, job.data.mediaAssetId);
+      try {
+        await handleDownloadMedia(db, job.data.mediaAssetId);
+      } catch (err) {
+        // Memory queue runs handlers inline; never fail message ingest because
+        // download failed — the worker will retry / requeue stuck assets.
+        console.error("[media] inline download failed", err);
+      }
     },
   );
   await queue.work<{ messageId: string }>(

@@ -10,7 +10,12 @@ import {
   messageStatusEvent,
   outboundMessage,
 } from "@mmabon/db";
-import { parseMetaWebhook, mapInboundType, extractTextBody, extractCaption } from "@mmabon/whatsapp";
+import {
+  parseMetaWebhook,
+  mapInboundType,
+  extractTextBody,
+  extractCaption,
+} from "@mmabon/whatsapp";
 import { Jobs, type Queue } from "@mmabon/queue";
 import { defaultMediaFilename } from "../lib/media-path.js";
 
@@ -21,8 +26,16 @@ const STATUS_RANK: Record<string, number> = {
   read: 3,
 };
 
-export async function processWaEvent(db: Db, queue: Queue, webhookEventId: number): Promise<void> {
-  const [evt] = await db.select().from(webhookEvent).where(eq(webhookEvent.id, webhookEventId)).limit(1);
+export async function processWaEvent(
+  db: Db,
+  queue: Queue,
+  webhookEventId: number,
+): Promise<void> {
+  const [evt] = await db
+    .select()
+    .from(webhookEvent)
+    .where(eq(webhookEvent.id, webhookEventId))
+    .limit(1);
   if (!evt) return;
   if (evt.processedAt) return;
 
@@ -31,7 +44,12 @@ export async function processWaEvent(db: Db, queue: Queue, webhookEventId: numbe
     for (const entry of payload.entry) {
       for (const change of entry.changes) {
         if (change.field === "messages") {
-          await handleMessagesChange(db, queue, entry.id, change.value as Record<string, unknown>);
+          await handleMessagesChange(
+            db,
+            queue,
+            entry.id,
+            change.value as Record<string, unknown>,
+          );
         } else if (
           [
             "phone_number_quality_update",
@@ -43,7 +61,11 @@ export async function processWaEvent(db: Db, queue: Queue, webhookEventId: numbe
           ].includes(change.field)
         ) {
           // best-effort phone metadata updates
-          const meta = change.value as { display_phone_number?: string; phone_number_id?: string; event?: string };
+          const meta = change.value as {
+            display_phone_number?: string;
+            phone_number_id?: string;
+            event?: string;
+          };
           if (meta.phone_number_id) {
             await db
               .insert(waPhoneNumber)
@@ -81,7 +103,9 @@ async function handleMessagesChange(
   wabaId: string,
   value: Record<string, unknown>,
 ): Promise<void> {
-  const metadata = value.metadata as { display_phone_number?: string; phone_number_id?: string } | undefined;
+  const metadata = value.metadata as
+    | { display_phone_number?: string; phone_number_id?: string }
+    | undefined;
   const phoneNumberId = metadata?.phone_number_id;
   if (!phoneNumberId) return;
 
@@ -108,9 +132,14 @@ async function handleMessagesChange(
     phone = inserted[0]!;
   }
 
-  const contactsArr = (value.contacts as Array<{ wa_id: string; profile?: { name?: string } }> | undefined) ?? [];
-  const messages = (value.messages as Array<Record<string, unknown>> | undefined) ?? [];
-  const statuses = (value.statuses as Array<Record<string, unknown>> | undefined) ?? [];
+  const contactsArr =
+    (value.contacts as
+      | Array<{ wa_id: string; profile?: { name?: string } }>
+      | undefined) ?? [];
+  const messages =
+    (value.messages as Array<Record<string, unknown>> | undefined) ?? [];
+  const statuses =
+    (value.statuses as Array<Record<string, unknown>> | undefined) ?? [];
 
   for (const msg of messages) {
     const waId = String(msg.from);
@@ -127,7 +156,12 @@ async function handleMessagesChange(
     let [conv] = await db
       .select()
       .from(conversation)
-      .where(and(eq(conversation.contactId, c!.id), eq(conversation.waPhoneNumberId, phone.id)))
+      .where(
+        and(
+          eq(conversation.contactId, c!.id),
+          eq(conversation.waPhoneNumberId, phone.id),
+        ),
+      )
       .limit(1);
     if (!conv) {
       const created = await db
@@ -136,41 +170,42 @@ async function handleMessagesChange(
         .returning();
       conv = created[0]!;
     } else if (conv.status === "closed") {
-      await db.update(conversation).set({ status: "open" }).where(eq(conversation.id, conv.id));
+      await db
+        .update(conversation)
+        .set({ status: "open" })
+        .where(eq(conversation.id, conv.id));
     }
 
     const type = mapInboundType(String(msg.type));
     let mediaId: string | undefined;
-    const mediaObj = msg[type] as {
-      id?: string;
-      mime_type?: string;
-      sha256?: string;
-      filename?: string;
-    } | undefined;
-    if (mediaObj?.id && ["image", "audio", "video", "document", "sticker"].includes(type)) {
+    const mediaObj = msg[type] as
+      | {
+          id?: string;
+          mime_type?: string;
+          sha256?: string;
+          filename?: string;
+        }
+      | undefined;
+    if (
+      mediaObj?.id &&
+      ["image", "audio", "video", "document", "sticker"].includes(type)
+    ) {
       const [m] = await db
         .insert(mediaAsset)
         .values({
           waMediaId: mediaObj.id,
           mimeType: mediaObj.mime_type,
           sha256Meta: mediaObj.sha256,
-          originalFilename: defaultMediaFilename(type, mediaObj.mime_type, mediaObj.filename),
+          originalFilename: defaultMediaFilename(
+            type,
+            mediaObj.mime_type,
+            mediaObj.filename,
+          ),
           status: "pending",
           waIdExpiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
         })
         .returning();
       mediaId = m!.id;
-      await queue.send(
-        Jobs.WA_DOWNLOAD_MEDIA,
-        { mediaAssetId: mediaId },
-        {
-          singletonKey: `media-${mediaId}`,
-          retryLimit: 8,
-          retryDelay: 30,
-          retryBackoff: true,
-          expireInSeconds: 600,
-        },
-      );
     }
 
     const waTs = new Date(Number(msg.timestamp) * 1000);
@@ -189,7 +224,10 @@ async function handleMessagesChange(
         caption,
         mediaAssetId: mediaId,
         contextWamid: (msg.context as { id?: string } | undefined)?.id,
-        reactionEmoji: type === "reaction" ? (msg.reaction as { emoji?: string })?.emoji : null,
+        reactionEmoji:
+          type === "reaction"
+            ? (msg.reaction as { emoji?: string })?.emoji
+            : null,
         location: type === "location" ? msg.location : null,
         waTimestamp: waTs,
         status: "received",
@@ -209,10 +247,29 @@ async function handleMessagesChange(
         })
         .where(eq(conversation.id, conv.id));
 
+      // After the message row exists so download can resolve conversation/phone.
+      if (mediaId) {
+        await queue.send(
+          Jobs.WA_DOWNLOAD_MEDIA,
+          { mediaAssetId: mediaId },
+          {
+            singletonKey: `media-${mediaId}`,
+            retryLimit: 8,
+            retryDelay: 30,
+            retryBackoff: true,
+            expireInSeconds: 600,
+          },
+        );
+      }
+
       if (!["reaction", "unsupported"].includes(type)) {
-        await queue.send(Jobs.AI_CLASSIFY_MESSAGE, { messageId: inserted[0].id }, {
-          singletonKey: `classify-${inserted[0].id}`,
-        });
+        await queue.send(
+          Jobs.AI_CLASSIFY_MESSAGE,
+          { messageId: inserted[0].id },
+          {
+            singletonKey: `classify-${inserted[0].id}`,
+          },
+        );
       }
     }
   }
@@ -235,12 +292,20 @@ async function handleMessagesChange(
       })
       .onConflictDoNothing();
 
-    const [msg] = await db.select().from(message).where(eq(message.wamid, wamid)).limit(1);
+    const [msg] = await db
+      .select()
+      .from(message)
+      .where(eq(message.wamid, wamid))
+      .limit(1);
     if (!msg) continue;
 
     if (status === "failed") {
       if (msg.status !== "delivered" && msg.status !== "read") {
-        const err0 = (st.errors as Array<{ code?: number; title?: string; message?: string }> | undefined)?.[0];
+        const err0 = (
+          st.errors as
+            | Array<{ code?: number; title?: string; message?: string }>
+            | undefined
+        )?.[0];
         await db
           .update(message)
           .set({
@@ -253,7 +318,11 @@ async function handleMessagesChange(
         if (msg.outboundMessageId) {
           await db
             .update(outboundMessage)
-            .set({ status: "failed", lastErrorCode: err0?.code ?? null, lastError: err0?.message ?? null })
+            .set({
+              status: "failed",
+              lastErrorCode: err0?.code ?? null,
+              lastError: err0?.message ?? null,
+            })
             .where(eq(outboundMessage.id, msg.outboundMessageId));
         }
       }
@@ -263,9 +332,15 @@ async function handleMessagesChange(
     const newRank = STATUS_RANK[status];
     const curRank = STATUS_RANK[msg.status] ?? -1;
     if (newRank !== undefined && newRank > curRank && msg.status !== "failed") {
-      await db.update(message).set({ status: status as never }).where(eq(message.id, msg.id));
+      await db
+        .update(message)
+        .set({ status: status as never })
+        .where(eq(message.id, msg.id));
       if (msg.outboundMessageId && status === "sent") {
-        await db.update(outboundMessage).set({ status: "sent" }).where(eq(outboundMessage.id, msg.outboundMessageId));
+        await db
+          .update(outboundMessage)
+          .set({ status: "sent" })
+          .where(eq(outboundMessage.id, msg.outboundMessageId));
       }
     }
   }

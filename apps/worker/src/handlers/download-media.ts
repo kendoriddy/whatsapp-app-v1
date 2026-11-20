@@ -40,7 +40,21 @@ export async function fetchMediaBytes(args: {
   phoneNumberId: string;
   graph: Pick<GraphMediaClient, "getMedia" | "downloadUrl">;
 }): Promise<{ bytes: Buffer; mimeType: string; sha256: string; fileSize: number }> {
-  const meta = await args.graph.getMedia(args.waMediaId, args.phoneNumberId);
+  const meta = (await args.graph.getMedia(
+    args.waMediaId,
+    args.phoneNumberId,
+  )) as {
+    url?: string;
+    mime_type?: string;
+    sha256?: string;
+    file_size?: number;
+    error?: { message?: string; code?: number };
+  };
+  if (meta?.error) {
+    throw new Error(
+      `Graph media error: ${meta.error.message ?? meta.error.code ?? "unknown"}`,
+    );
+  }
   if (!meta?.url) throw new Error("Media metadata missing url");
 
   let bytes: Buffer;
@@ -63,8 +77,8 @@ export async function fetchMediaBytes(args: {
 
   return {
     bytes,
-    mimeType: meta.mime_type,
-    sha256: meta.sha256,
+    mimeType: meta.mime_type ?? "application/octet-stream",
+    sha256: meta.sha256 ?? "",
     fileSize: meta.file_size ?? bytes.byteLength,
   };
 }

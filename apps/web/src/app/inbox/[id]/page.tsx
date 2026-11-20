@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { api } from "@/lib/api-client";
 import { ConversationList } from "@/components/ConversationList";
+import { MessageMedia } from "@/components/MessageMedia";
 import { ThreadAiPanel } from "@/components/ThreadAiPanel";
 import { ThreadInvoicePanel } from "@/components/ThreadInvoicePanel";
 import { ThreadSkeleton } from "@/components/loading/LoadingState";
@@ -11,6 +12,14 @@ import { formatTime } from "@/lib/format";
 
 const RAIL_KEY = "mmabon_chat_rail_open";
 const NEAR_BOTTOM_PX = 80;
+
+type MsgMedia = {
+  id: string;
+  status: string | null;
+  mimeType: string | null;
+  filename: string | null;
+  url: string | null;
+};
 
 type Msg = {
   id: string;
@@ -23,6 +32,7 @@ type Msg = {
   waTimestamp: string;
   senderLabel?: "Customer" | "Staff" | "Merlin";
   autoSent?: boolean;
+  media?: MsgMedia | null;
 };
 
 type PendingMsg = Msg & { clientId: string };
@@ -162,6 +172,7 @@ export default function ThreadPage() {
       status: "sending",
       classification: null,
       waTimestamp: new Date().toISOString(),
+      media: null,
     };
 
     // Instant UX: clear composer + show pending bubble.
@@ -294,7 +305,18 @@ export default function ThreadPage() {
                     </span>
                   </div>
                   <div className="msg-body">
-                    {m.textBody ?? m.caption ?? `[${m.type}]`}
+                    {["image", "audio", "video", "document", "sticker"].includes(
+                      m.type,
+                    ) || m.media ? (
+                      <MessageMedia
+                        type={m.type}
+                        caption={m.caption}
+                        textBody={m.textBody}
+                        media={m.media}
+                      />
+                    ) : (
+                      (m.textBody ?? m.caption ?? `[${m.type}]`)
+                    )}
                   </div>
                   <div className="msg-foot muted">
                     {meta}
