@@ -1,5 +1,5 @@
 import { asc, eq } from "drizzle-orm";
-import { message, outboundMessage } from "@mmabon/db";
+import { mediaAsset, message, outboundMessage } from "@mmabon/db";
 import { getDb } from "@/lib/db";
 import { requireRole, jsonError } from "@/lib/auth";
 
@@ -25,12 +25,17 @@ export async function GET(
         outboundOrigin: outboundMessage.origin,
         automationSettingKey: outboundMessage.automationSettingKey,
         autoSent: outboundMessage.autoSent,
+        mediaId: mediaAsset.id,
+        mediaStatus: mediaAsset.status,
+        mediaMimeType: mediaAsset.mimeType,
+        mediaFilename: mediaAsset.originalFilename,
       })
       .from(message)
       .leftJoin(
         outboundMessage,
         eq(message.outboundMessageId, outboundMessage.id),
       )
+      .leftJoin(mediaAsset, eq(message.mediaAssetId, mediaAsset.id))
       .where(eq(message.conversationId, id))
       .orderBy(asc(message.waTimestamp))
       .limit(200);
@@ -53,6 +58,15 @@ export async function GET(
             ? "Customer"
             : "Staff",
       autoSent: r.autoSent ?? false,
+      media: r.mediaId
+        ? {
+            id: r.mediaId,
+            status: r.mediaStatus,
+            mimeType: r.mediaMimeType,
+            filename: r.mediaFilename,
+            url: r.mediaStatus === "stored" ? `/api/media/${r.mediaId}` : null,
+          }
+        : null,
     }));
 
     return Response.json({ items, nextCursor: null });
